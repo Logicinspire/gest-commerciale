@@ -9,6 +9,7 @@ Replace Pipedrive for the ITALIACORSI sales team (commerciale.italiacorsi.it). T
 - Webhooks: /api/webhooks/contratti (X-Webhook-Secret), /api/webhooks/leads (X-Leads-Secret)
 - Contratti client: CONTRATTI_API_URL/KEY. While these are empty, SAMPLE data (MOCKED) is used. Cron /api/cron/sync-prodotti runs hourly (.emergent/crons.yml)
 
+- Affare = proposta: "+ Affare" opens the proposal builder directly; the deal is created automatically (or the contact's open deal with no proposals is reused) and named after the products; "Apri nel builder di contratti" link
 - Rimandi: "Completa e richiama" creates "Rimando - <name>", "Rimando 2 - <name>"… with a chosen time; each rimando shows the full chain history (planned date/time, feedback, completed at) via GET /api/activities/{id}/storico
 - Activity feedback: activity cards (Nell'occhio del mirino + Cronologia) open a yellow feedback editor; "Salva e completa" and "Completa e richiama" (domani/3g/1 sett/1 mese/4 mesi) add the next callback
 ## Implemented (2026-06)

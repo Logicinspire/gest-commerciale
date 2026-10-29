@@ -837,7 +837,8 @@ async def search(q: str, member: dict = Depends(staff)):
     digits = re.sub(r"\D", "", q)
     if len(digits) >= 4:
         ors.append({"telefono_norm": {"$regex": digits}})
-    return {"persons": await db.persons.find({"$or": ors}, {"_id": 0, "id": 1, "full_name": 1, "email": 1, "telefono": 1}).limit(6).to_list(6),
+    return {"persons": await db.persons.find({"$or": ors}, {"_id": 0, "id": 1, "full_name": 1, "nome": 1, "cognome": 1, "email": 1, "telefono": 1,
+                                                          "citta": 1, "professione": 1, "prodotto_richiesto": 1}).limit(6).to_list(6),
             "organizations": await db.organizations.find({"nome": rx(q)}, {"_id": 0, "id": 1, "nome": 1}).limit(4).to_list(4),
             "deals": await db.deals.find({"titolo": rx(q)}, {"_id": 0, "id": 1, "titolo": 1, "person_id": 1, "fase": 1}).limit(5).to_list(5)}
 
@@ -1371,7 +1372,10 @@ async def proposta_create(body: PropostaIn, member: dict = Depends(staff)):
     if contratti_live():
         b = await _build_local_for_live(body)
         await _ensure_deal(body, b, member)
-        return await remote("POST", "/proposte", member, {**body.model_dump(), "crm_deal_id": body.deal_id, "crm_person_id": b["person"]["id"]})
+        res = await remote("POST", "/proposte", member, {**body.model_dump(), "crm_deal_id": body.deal_id, "crm_person_id": b["person"]["id"]})
+        if res.get("id"):
+            await db.deals.update_one({"id": body.deal_id}, {"$addToSet": {"proposte": str(res["id"])}, "$set": {"proposta_id": str(res["id"])}})
+        return res
     b = await _build_proposta(body, member)
     await _ensure_deal(body, b, member)
     n = await db.mock_proposte.count_documents({}) + 1

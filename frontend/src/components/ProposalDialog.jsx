@@ -47,7 +47,8 @@ export const ProposalDialog = ({ open, onOpenChange, deal, person, onSaved }) =>
   const setRow = (i, k, v) => setF((x) => ({ ...x, righe: x.righe.map((r, j) => (j === i ? { ...r, [k]: v } : r)) }));
   const body = () => ({ ...f, deal_id: deal?.id || null, person_id: deal ? null : contact?.id, righe: f.righe.filter((r) => r.prodotto_id).map((r) => ({ ...r, quantita: Number(r.quantita) || 1, sconto_pct: Number(r.sconto_pct) || 0 })),
     num_rate: Number(f.num_rate) || 1 });
-  const builderUrl = buildPropostaUrl(config.contratti_url, contact, { ...deal, prodotti: f.righe.map((r) => r.prodotto_id).filter(Boolean) });
+  const selNames = f.righe.map((r) => products.find((p) => p.id === r.prodotto_id)?.nome).filter(Boolean).join(" + ");
+  const builderUrl = buildPropostaUrl(config.contratti_url, contact, { ...deal, titolo: selNames || deal?.titolo, prodotti: f.righe.map((r) => r.prodotto_id).filter(Boolean) });
   const preview = async () => {
     setBusy(true);
     try { setPv((await api.post("/contratti/anteprima", body())).data); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
@@ -66,10 +67,10 @@ export const ProposalDialog = ({ open, onOpenChange, deal, person, onSaved }) =>
       <DialogContent className="max-w-4xl" data-testid="proposal-dialog">
         <DialogHeader><DialogTitle className="font-display">{deal ? `Nuova proposta · ${deal.titolo}` : "Nuovo affare · proposta"}</DialogTitle></DialogHeader>
         {!pv && !deal && (
-          <label className="block text-xs font-medium text-slate-600">Contatto
+          <div className="block text-xs font-medium text-slate-600">Contatto
             <div className="mt-1">{person ? <div className="crm-input flex items-center" data-testid="proposal-contact">{person.full_name} · {person.email}</div>
               : <PersonPicker value={picked} onChange={setPicked} testid="proposal-person-picker" />}</div>
-          </label>
+          </div>
         )}
         {!pv ? (
           <div className="space-y-4">

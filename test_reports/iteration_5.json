@@ -1,0 +1,38 @@
+{
+  "summary": "Tested 'Affare = proposta' on backend and frontend (mock contratti mode). Backend: new tests/test_affare_proposta.py passes 10/10; full suite passes 46/46 when run sequentially. UI flows that passed: (1) Person page add-deal-btn on a lead whose deal is 'Contatto ricevuto' with no proposals: the dialog title is 'Nuovo affare · proposta' and proposal-contact is prefilled. Anteprima, then 'Crea e invia', navigated to /affari/<the SAME lead deal id> (reused). The title became 'Abbonamento CTI Premium' (the product name), fase 'Proposta inviata', and PR listed in Proposte. (2) section-add-deal on the same person: that deal now has a proposal, so a NEW deal was created; title = product. (3) Regression: button-crea-proposta-<id> on the person page and deal-crea-proposta-btn on the deal page add the proposal to THAT deal (the deal page showed 2 proposals; no new deal). (4) Affari page add-deal-page-btn: Anteprima without a contact shows the toast 'Scegli il contatto della proposta'. CRITICAL bug found and fixed: selecting a person in proposal-person-picker was cleared immediately. After the fix, the flow works and navigates to the new deal page. (5) proposal-open-builder href starts with https://contratti.italiacorsi.it/proposte/nuova? and contains nome, email and crm_person_id when the contact is prefilled. It is missing nome and cognome when the contact is picked via the picker (see minor issues).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/search", "issue": "The persons projection returns only id, full_name, email and telefono. ProposalDialog builds the builder URL from the picked person, so from the Affari page the 'Apri nel builder di contratti' link has no nome, cognome, citta, professione or prodotto_richiesto. Observed href: ...nuova?email=...&telefono=...&prodotti=ex-1&crm_person_id=... Fix: add nome, cognome, citta, professione and prodotto_richiesto to the projection, or fetch the full person on pick."},
+      {"endpoint": "POST /api/contratti/proposte (live mode)", "issue": "_ensure_deal runs before remote(). If the remote contratti call fails, an orphan deal is left behind (title already set or renamed). In live mode the local deal.proposte is never filled by this endpoint (only by webhooks), so the next proposal for the same contact could reuse the same deal again. Not testable in mock mode; code review only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ProposalDialog contact picker (Affari page + Affare)", "issue": "FIXED by testing agent. Clicking a person option in proposal-person-picker selected it, then cleared it at once, so the Affari page flow could never set a contact. RCA: the PersonPicker was wrapped in a <label>. After the option click, React re-rendered to the 'selected' state. The label's activation behaviour then forwarded a synthetic click to its first labelable descendant, which was now the proposal-person-picker-clear button, calling onChange(null). A click trace confirmed it: option click, then clear click. Fix: changed the wrapping <label> to a <div> in ProposalDialog.jsx. Verified that selection persists, the flow navigates to /affari/<new id>, and the clear button still works.", "selector": "[data-testid='proposal-person-picker-option-<id>']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Builder link from the person page", "issue": "Minor. The 'prodotto' query param uses person.prodotto_richiesto (e.g. 'Corso Carbon Farming') even after the user picks a different product in the dialog (prodotti=ex-2 = CTI Premium). The two params disagree. Consider deriving 'prodotto' from the selected rows.", "affected_selectors": ["[data-testid='proposal-open-builder']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_affare_proposta.py", "/app/test_reports/pytest/pytest_iter5.xml"],
+  "action_items": [
+    "Keep the label-to-div fix in ProposalDialog.jsx. Avoid wrapping PersonPicker (or any component that swaps its input for a button) in a <label> elsewhere.",
+    "Add nome, cognome, citta, professione and prodotto_richiesto to the /api/search persons projection, so the builder link is complete when the contact is picked from the Affari page.",
+    "Optional: in live mode, create the deal only after remote() succeeds (or roll it back on failure). Mark the deal as having a proposal locally so it is not reused.",
+    "Optional: derive the builder 'prodotto' param from the selected product names instead of prodotto_richiesto."
+  ],
+  "critical_code_review_comments": [
+    "_ensure_deal reuse matches ANY open deal without proposals for that contact, whatever its fase, sorted by created_at desc. If a commerciale has a manually created deal they intended to keep separate, it will be renamed silently. The rename is not logged in history (only creation is logged).",
+    "The proposal id uses count_documents + 1, which is race-prone and can collide after deletes (pre-existing).",
+    "Deleting a person leaves its mock_proposte docs orphaned (pre-existing, mock only)."
+  ],
+  "updated_files": ["/app/frontend/src/components/ProposalDialog.jsx", "/app/backend/tests/test_affare_proposta.py"],
+  "success_rate": {"backend": "100% (10/10 new, 46/46 full suite sequential)", "frontend": "100% after fix (Affari picker flow failed before the fix)"},
+  "test_credentials": "angelo+clerk_test@italiacorsi.it (admin) via tests/make_test_users.py and tests/make_ticket.py Angelo. Ticket sessions don't persist between browser_automation runs, so make a new ticket each run.",
+  "seed_data_creation": "The UI lead TEST_UiLead c9d060 was created via make_ui_lead.py and deleted afterwards. The pytest fixtures clean up their own data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python tests/make_test_users.py && pytest tests/ -p no:xdist -o addopts=''. The Affari page flow needs the PersonPicker selection fix (label replaced with a div). For UI: make_ticket.py Angelo, then /sign-in?__clerk_ticket=<t>, wait 6s. After 'Salva bozza' on an existing deal, a proposal sheet opens with an overlay; press Escape before further clicks. Not tested: live contratti mode, and multiple rows/rate payment in the dialog via UI."
+}
