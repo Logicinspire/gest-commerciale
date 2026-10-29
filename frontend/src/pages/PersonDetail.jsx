@@ -9,7 +9,7 @@ import { LabelPicker } from "@/components/LabelPill";
 import { PersonDialog } from "@/components/PersonDialog";
 import { DealDialog } from "@/components/DealDialog";
 import { ActivityForm } from "@/components/ActivityForm";
-import { QuickReschedule } from "@/components/QuickReschedule";
+import { ActivityCard } from "@/components/ActivityCard";
 import { ProposalDialog } from "@/components/ProposalDialog";
 import { ProposalPanel, StatoPill } from "@/components/ProposalPanel";
 
@@ -83,22 +83,7 @@ const Panoramica = ({ data, person }) => {
   );
 };
 
-export const ActivityRow = ({ a, onChanged }) => {
-  const toggle = async () => { try { await api.patch(`/activities/${a.id}`, { done: !a.done }); onChanged(); } catch (e) { toast.error(errMsg(e)); } };
-  const Icon = TIPI[a.tipo]?.Icon || Circle;
-  const late = !a.done && a.data < new Date().toISOString().slice(0, 10);
-  return (
-    <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-white p-3" data-testid={`activity-card-${a.id}`}>
-      <button onClick={toggle} data-testid={`activity-toggle-${a.id}`}>{a.done ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Circle className="h-5 w-5 text-slate-300 hover:text-green-600" />}</button>
-      <div className="min-w-0 flex-1">
-        <div className={`flex items-center gap-1.5 text-sm font-semibold ${a.done ? "text-slate-400 line-through" : ""}`}><Icon className="h-4 w-4" />{a.oggetto}</div>
-        <div className={`text-xs ${late ? "text-red-600" : "text-slate-500"}`}>{fmtDate(a.data, "EEE d MMM yyyy")}{a.ora ? ` alle ${a.ora}` : ""}</div>
-        {a.note && <div className="mt-2 whitespace-pre-wrap rounded bg-yellow-50 p-2 text-sm">{a.note}</div>}
-      </div>
-      {!a.done && <QuickReschedule activity={a} onDone={onChanged} />}
-    </div>
-  );
-};
+export const ActivityRow = ActivityCard;
 
 export const Timeline = ({ data, onChanged }) => {
   const [tab, setTab] = useState("tutti");
@@ -126,8 +111,7 @@ export const Timeline = ({ data, onChanged }) => {
                 <div className="mt-1 whitespace-pre-wrap text-sm">{i.n.content}</div>
               </div>
             )}
-            {i.a && <div className="text-sm"><span className="font-semibold">{TIPI[i.a.tipo]?.label}: {i.a.oggetto}</span> <span className="text-xs text-slate-500">· completata {fmtDateTime(i.at)}</span>
-              {i.a.note && <div className="mt-1 whitespace-pre-wrap rounded bg-yellow-50 p-2 text-sm">{i.a.note}</div>}</div>}
+            {i.a && <div className="-ml-[46px]"><ActivityCard a={i.a} onChanged={onChanged} /></div>}
             {i.h && <div className="text-sm"><span className={i.h.kind === "contratti" || i.h.kind === "stage" ? "font-medium text-[#0a3b7c]" : ""}>{i.h.text}</span><div className="text-xs text-slate-500">{fmtDateTime(i.at)} · {i.h.user_name}</div></div>}
           </div>
         ))}
