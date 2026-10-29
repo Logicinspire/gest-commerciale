@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only test of ActivityCard feedback, Pipedrive-style, on /persone/:id and /affari/:id. All requested flows pass: opening the panel via the title, 'Lascia un feedback' and the circle; Salva feedback with a yellow note while the activity stays planned; reopening from the note; Annulla restores the note; 'Salva e completa' moves the card to Cronologia with a green check and the note; editing the note in Cronologia; reopening from the check; Completa e richiama 1d/1w/4m with correct new dates; QuickReschedule regression with 3d; the activity form on the deal page still creates activities.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Person Cronologia", "issues": ["A completed activity appears twice: as the history line 'Attività completata: X' and as the ActivityCard just below it. This is redundant. The deal Cronologia shows only the card."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/make_ui_activities.py"],
+  "action_items": [
+    "Optional: in completeAndRecall, PATCH done and POST the new richiamo as two separate calls. If the POST fails, the activity is already completed and no recall is created. Consider a single backend endpoint, or a rollback on failure.",
+    "Optional: remove the duplicate 'Attività completata' history entry next to the activity card in the person Cronologia"
+  ],
+  "critical_code_review_comments": [
+    "ActivityCard.completeAndRecall is not atomic (PATCH, then POST). A partial failure leaves an inconsistent state.",
+    "The new richiamo does not copy 'ora' or 'priorita' from the original activity. This may be intended.",
+    "No pending or disabled state on the save, complete and recall buttons. A double-click can create duplicate richiamo activities."
+  ],
+  "updated_files": ["/app/backend/tests/make_ui_activities.py"],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "100% of requested flows"},
+  "test_credentials": "angelo+clerk_test@italiacorsi.it (admin) via tests/make_test_users.py and tests/make_ticket.py Angelo",
+  "seed_data_creation": "Created a TEST_UI person, a deal and 5 activities with tests/make_ui_activities.py. All deleted after the run; the activity count for the person is 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Seed with `python tests/make_test_users.py && python tests/make_ui_activities.py` (gives pid/did/activity ids). Then use `python tests/make_ticket.py Angelo` (single-use) and open /sign-in?__clerk_ticket=<t>. Not tested: the 3d/1m recall presets (same code path as 1d/1w/4m), and ActivityCard on ActivitiesPage or OrgDetail, if it is used there."
+}

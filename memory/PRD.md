@@ -9,6 +9,7 @@ Replace Pipedrive for the ITALIACORSI sales team (commerciale.italiacorsi.it). T
 - Webhooks: /api/webhooks/contratti (X-Webhook-Secret), /api/webhooks/leads (X-Leads-Secret)
 - Contratti client: CONTRATTI_API_URL/KEY. While these are empty, SAMPLE data (MOCKED) is used. Cron /api/cron/sync-prodotti runs hourly (.emergent/crons.yml)
 
+- Activity feedback: activity cards (Nell'occhio del mirino + Cronologia) open a yellow feedback editor; "Salva e completa" and "Completa e richiama" (domani/3g/1 sett/1 mese/4 mesi) add the next callback
 ## Implemented (2026-06)
 - Professione: fixed bases (Ingegnere, Architetto, Geometra, Perito) + specialization. Text from Facebook, site, import and manual entry is interpreted automatically (typos and abbreviations such as ing/geom/arch/P.I.). New specializations are saved in the `professioni` collection and offered as suggestions. Contacts can be filtered by profession.
 - Deal page /affari/:id (Pipedrive-like): stage bar, Aggiudicato/Perso/Riapri, Crea proposta, summary (value, label, expected date, owner), proposals, details, person, products, overview, notes/activities linked to the deal, deal timeline

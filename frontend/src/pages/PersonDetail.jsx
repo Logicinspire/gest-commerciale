@@ -91,7 +91,7 @@ export const Timeline = ({ data, onChanged }) => {
   const items = [
     ...data.notes.map((n) => ({ k: "note", at: n.created_at, n })),
     ...data.activities.filter((a) => a.done).map((a) => ({ k: "attivita", at: a.done_at || a.created_at, a })),
-    ...data.history.map((h) => ({ k: ["stage", "deal", "contratti"].includes(h.kind) ? "affari" : "log", at: h.created_at, h })),
+    ...data.history.filter((h) => h.kind !== "done").map((h) => ({ k: ["stage", "deal", "contratti"].includes(h.kind) ? "affari" : "log", at: h.created_at, h })),
   ].filter((i) => tab === "tutti" || i.k === tab).sort((x, y) => (y.at || "").localeCompare(x.at || ""));
   const delNote = async (id) => { try { await api.delete(`/notes/${id}`); onChanged(); } catch (e) { toast.error(errMsg(e)); } };
   const tabs = [["tutti", "Tutti"], ["note", `Note (${data.notes.length})`], ["attivita", "Attività"], ["affari", "Affari e proposte"], ["log", "Registro modifiche"]];
