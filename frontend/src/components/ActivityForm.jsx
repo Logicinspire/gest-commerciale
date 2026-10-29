@@ -52,9 +52,9 @@ const DayCalendar = ({ day, setDay, draft, ownerId }) => {
   );
 };
 
-export const ActivityForm = ({ person, deals = [], onSaved, onCancel, withCalendar = true }) => {
+export const ActivityForm = ({ person, deals = [], onSaved, onCancel, withCalendar = true, defaultDealId = "" }) => {
   const { team, me } = useApp();
-  const blank = () => ({ tipo: "chiamata", oggetto: "", data: todayStr(), ora: "", ora_fine: "", note: "", owner_id: me.user_id, deal_id: "", done: false, priorita: "" });
+  const blank = () => ({ tipo: "chiamata", oggetto: "", data: todayStr(), ora: "", ora_fine: "", note: "", owner_id: me.user_id, deal_id: defaultDealId, done: false, priorita: "" });
   const [f, setF] = useState(blank);
   const [pickedPerson, setPickedPerson] = useState(person || null);
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));

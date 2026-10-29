@@ -32,7 +32,7 @@ const Kanban = ({ owner, reloadKey, onReload }) => {
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto p-2">
             {c.items.map((d) => (
-              <div key={d.id} draggable onDragStart={(e) => e.dataTransfer.setData("deal", d.id)} onClick={() => d.person_id && nav(`/persone/${d.person_id}`)}
+              <div key={d.id} draggable onDragStart={(e) => e.dataTransfer.setData("deal", d.id)} onClick={() => nav(`/affari/${d.id}`)}
                 className="cursor-grab rounded-md border border-slate-200 bg-white p-2.5 shadow-sm transition-shadow hover:shadow-md" data-testid={`kanban-card-${d.id}`}>
                 <div className="text-sm font-medium text-slate-900">{d.titolo}</div>
                 <div className="text-xs text-slate-500">{d.person?.full_name || "—"}</div>
@@ -72,7 +72,7 @@ const DealList = ({ owner, reloadKey, onReload }) => {
           <thead><tr><th className="th">Affare creato</th><th className="th">Titolo</th><th className="th text-right">Valore</th><th className="th">Persona di contatto</th><th className="th">Proprietario</th><th className="th">Fase</th>{isAdmin && <th className="th" />}</tr></thead>
           <tbody>
             {data.items.map((d) => (
-              <tr key={d.id} className="cursor-pointer hover:bg-slate-50" onClick={() => d.person_id && nav(`/persone/${d.person_id}`)} data-testid={`deal-row-${d.id}`}>
+              <tr key={d.id} className="cursor-pointer hover:bg-slate-50" onClick={() => nav(`/affari/${d.id}`)} data-testid={`deal-row-${d.id}`}>
                 <td className="td text-[#0a3b7c]">{fmtDateTime(d.created_at)}</td><td className="td max-w-xs truncate text-[#0a3b7c]">{d.titolo}</td>
                 <td className="td text-right font-mono">{fmtMoney(d.valore)}</td><td className="td">{d.person?.full_name || "—"}</td>
                 <td className="td">{userName(d.owner_id) || d.owner_import || "—"}</td>

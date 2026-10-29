@@ -225,8 +225,11 @@ class DealIn(BaseModel):
     fase: Optional[str] = None
     motivo_perso: Optional[str] = None
     prodotti: Optional[List[str]] = None
+    etichetta: Optional[str] = None
+    data_prevista: Optional[str] = None
 
 
+DEAL_LABELS = ["Molto probabile", "Probabile", "Ci pensa", "Poco probabile"]
 class ActivityIn(BaseModel):
     tipo: Optional[str] = None
     oggetto: Optional[str] = None
@@ -565,7 +568,7 @@ async def create_deal(body: DealIn, member: dict = Depends(staff)):
     fase = body.fase if body.fase in FASI else FASI[0]
     doc = {"id": new_id(), "titolo": body.titolo, "valore": body.valore or 0, "person_id": body.person_id, "org_id": body.org_id,
            "owner_id": body.owner_id or member["user_id"], "fase": fase, "status": fase_status(fase),
-           "prodotti": body.prodotti or [], "created_at": now_iso(), "updated_at": now_iso()}
+           "prodotti": body.prodotti or [], "origine": "Creato manualmente", "created_at": now_iso(), "updated_at": now_iso()}
     await db.deals.insert_one(doc)
     if body.person_id:
         await log(f"Affare creato: {body.titolo}", member, kind="deal", person_id=body.person_id, deal_id=doc["id"])
@@ -575,13 +578,37 @@ async def create_deal(body: DealIn, member: dict = Depends(staff)):
 
 async def _set_fase(deal: dict, fase: str, member=None, extra=None):
     upd = {"fase": fase, "status": fase_status(fase), "updated_at": now_iso(), **(extra or {})}
+    if deal.get("fase") != fase:
+        upd["fase_since"] = now_iso()
     if fase in ("Aggiudicato", "Perso"):
         upd["closed_at"] = now_iso()
+        if deal.get("fase") not in ("Aggiudicato", "Perso"):
+            upd["fase_prev"] = deal.get("fase")
     await db.deals.update_one({"id": deal["id"]}, {"$set": upd})
     if deal.get("fase") != fase:
         src = "" if member else " (gestionale contratti)"
         await log(f"Fase affare \"{deal['titolo']}\": {deal.get('fase')} → {fase}{src}", member, kind="stage",
                   person_id=deal.get("person_id"), deal_id=deal["id"])
+
+
+@api.get("/deals/{did}")
+async def get_deal(did: str, member: dict = Depends(staff)):
+    d = await db.deals.find_one({"id": did}, {"_id": 0})
+    if not d:
+        raise HTTPException(404, "Affare non trovato")
+    person = await db.persons.find_one({"id": d.get("person_id")}, {"_id": 0}) if d.get("person_id") else None
+    org = await db.organizations.find_one({"id": d.get("org_id")}, {"_id": 0}) if d.get("org_id") else None
+    acts = await db.activities.find({"deal_id": did}, {"_id": 0}).sort([("data", 1), ("ora", 1)]).to_list(500)
+    notes = await db.notes.find({"deal_id": did}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    hist = await db.history.find({"deal_id": did}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    prods = await db.products.find({"id": {"$in": d.get("prodotti") or []}}, {"_id": 0}).to_list(100)
+    await attach_refs(acts)
+    now = datetime.now(timezone.utc)
+    days = lambda s: (now - datetime.fromisoformat(s)).days if s else 0  # noqa: E731
+    last = max([a.get("done_at") or "" for a in acts if a.get("done")] + [n["created_at"] for n in notes] + [d.get("created_at") or ""])
+    return {"deal": d, "person": person, "org": org, "activities": acts, "notes": notes, "history": hist, "products": prods,
+            "labels": DEAL_LABELS, "panoramica": {"eta_giorni": days(d.get("created_at")), "in_fase_giorni": days(d.get("fase_since") or d.get("created_at")),
+                                                  "inactive_days": days(last)}}
 
 
 @api.patch("/deals/{did}")
@@ -591,8 +618,13 @@ async def update_deal(did: str, body: DealIn, member: dict = Depends(staff)):
         raise HTTPException(404, "Affare non trovato")
     data = body.model_dump(exclude_unset=True)
     fase = data.pop("fase", None)
+    if "owner_id" in data and member["role"] != "admin" and d.get("owner_id") not in (None, member["user_id"]):
+        data.pop("owner_id")
     if data:
         await db.deals.update_one({"id": did}, {"$set": {**data, "updated_at": now_iso()}})
+        changed = [k for k in data if d.get(k) != data[k]]
+        if changed:
+            await log("Affare modificato: " + ", ".join(changed), member, kind="log", person_id=d.get("person_id"), deal_id=did)
     if fase:
         if fase not in FASI:
             raise HTTPException(400, "Fase non valida")
@@ -799,7 +831,7 @@ async def apply_contratti_event(body: dict):
             await db.persons.insert_one(person)
         deal = await db.deals.find_one({"person_id": person["id"], "status": "open"}, {"_id": 0}, sort=[("created_at", -1)])
         if not deal:
-            deal = {"id": new_id(), "titolo": body.get("titolo") or "Proposta", "valore": float(body.get("valore") or 0),
+            deal = {"id": new_id(), "titolo": body.get("titolo") or "Proposta", "origine": "Gestionale contratti", "valore": float(body.get("valore") or 0),
                     "person_id": person["id"], "org_id": None, "owner_id": person.get("owner_id"), "fase": FASI[0], "status": "open",
                     "created_at": now_iso(), "updated_at": now_iso()}
             await db.deals.insert_one(deal)
@@ -843,7 +875,7 @@ async def webhook_leads(request: Request):
         await db.persons.insert_one(doc)
         pid, owner = doc["id"], None
         await log(f"Lead ricevuto da {data['tipo_marketing']}", None, kind="created", person_id=pid)
-    await db.deals.insert_one({"id": new_id(), "titolo": data.get("prodotto_richiesto") or "Richiesta informazioni", "valore": 0,
+    await db.deals.insert_one({"id": new_id(), "titolo": data.get("prodotto_richiesto") or "Richiesta informazioni", "valore": 0, "origine": f"Lead {data['tipo_marketing']}",
                                "person_id": pid, "org_id": None, "owner_id": owner, "fase": FASI[0], "status": "open",
                                "created_at": now_iso(), "updated_at": now_iso()})
     return {"ok": True, "person_id": pid, "duplicate": bool(dups)}
@@ -1035,7 +1067,7 @@ async def import_rows(kind: str, body: ImportIn, admin: dict = Depends(admin_onl
                     stats["aggiornati"] += 1
                 else:
                     created = iso_or_now(r.get("created_at"))
-                    await db.deals.insert_one({"id": new_id(), **data, "pipedrive_id": r.get("pipedrive_id"), "created_at": created,
+                    await db.deals.insert_one({"id": new_id(), **data, "origine": "Importato da Pipedrive", "pipedrive_id": r.get("pipedrive_id"), "created_at": created,
                                                "updated_at": created, **({"closed_at": iso_or_now(r.get("closed_at"))} if r.get("closed_at") else {})})
                     stats["creati"] += 1
             elif kind == "activities":

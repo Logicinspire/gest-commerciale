@@ -70,7 +70,7 @@ const GlobalSearch = () => {
             </button>
           ))}
           {res.deals.map((d) => (
-            <button key={d.id} onClick={() => go(d.person_id ? `/persone/${d.person_id}` : "/affari")} className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-slate-50">
+            <button key={d.id} onClick={() => go(`/affari/${d.id}`)} className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-slate-50">
               <CircleDollarSign className="h-4 w-4 text-slate-400" /> {d.titolo} <span className="text-xs text-slate-500">· {d.fase}</span>
             </button>
           ))}
@@ -80,7 +80,7 @@ const GlobalSearch = () => {
   );
 };
 
-const TITLES = [["/contatti", "Contatti"], ["/persone", "Contatti / Persone"], ["/organizzazioni", "Contatti / Organizzazioni"], ["/affari", "Affari"],
+const TITLES = [["/contatti", "Contatti"], ["/persone", "Contatti / Persone"], ["/organizzazioni", "Contatti / Organizzazioni"], ["/affari/", "Affari / Dettaglio"], ["/affari", "Affari"],
   ["/attivita", "Attività"], ["/importa", "Importa da Pipedrive"], ["/utenti", "Utenti"], ["/integrazioni", "Collegamenti"]];
 
 export default function Layout({ children }) {

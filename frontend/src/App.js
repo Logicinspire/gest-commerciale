@@ -9,6 +9,7 @@ import ContactsPage from "@/pages/ContactsPage";
 import PersonDetail from "@/pages/PersonDetail";
 import OrgDetail from "@/pages/OrgDetail";
 import DealsPage from "@/pages/DealsPage";
+import DealDetail from "@/pages/DealDetail";
 import ActivitiesPage from "@/pages/ActivitiesPage";
 import ImportPage from "@/pages/ImportPage";
 import UsersPage from "@/pages/UsersPage";
@@ -57,6 +58,7 @@ const Shell = () => (
         <Route path="/persone/:id" element={<PersonDetail />} />
         <Route path="/organizzazioni/:id" element={<OrgDetail />} />
         <Route path="/affari" element={<DealsPage />} />
+        <Route path="/affari/:id" element={<DealDetail />} />
         <Route path="/attivita" element={<ActivitiesPage />} />
         <Route path="/importa" element={<ImportPage />} />
         <Route path="/utenti" element={<UsersPage />} />

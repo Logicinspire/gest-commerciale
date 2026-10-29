@@ -13,7 +13,7 @@ import { QuickReschedule } from "@/components/QuickReschedule";
 import { ProposalDialog } from "@/components/ProposalDialog";
 import { ProposalPanel, StatoPill } from "@/components/ProposalPanel";
 
-const Section = ({ title, children, action, testid }) => {
+export const Section = ({ title, children, action, testid }) => {
   const [open, setOpen] = useState(true);
   return (
     <section className="border-b border-slate-200 px-5 py-4" data-testid={testid}>
@@ -29,7 +29,7 @@ const Section = ({ title, children, action, testid }) => {
 const DETAILS = [["nome", "Nome"], ["cognome", "Cognome"], ["professione", "Professione"], ["primo_contatto", "Primo contatto"], ["prodotto_richiesto", "Prodotto richiesto"],
   ["tipo_marketing", "Tipo marketing"], ["citta", "Città"], ["privacy", "Privacy"]];
 
-const DealsBlock = ({ deals, proposte, onNew, onChanged, onProposal, onOpenProp }) => {
+const DealsBlock = ({ deals, proposte, onNew, onChanged, onProposal, onOpenProp, onOpenDeal }) => {
   const setFase = async (d, fase) => {
     try { await api.patch(`/deals/${d.id}`, { fase }); toast.success(`Fase: ${fase}`); onChanged(); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -39,7 +39,7 @@ const DealsBlock = ({ deals, proposte, onNew, onChanged, onProposal, onOpenProp 
       {deals.map((d) => (
         <div key={d.id} className="rounded-md border border-slate-200 p-3" style={{ borderLeft: `3px solid ${FASE_COLORS[d.fase]}` }} data-testid={`person-deal-${d.id}`}>
           <div className="flex items-start justify-between gap-2">
-            <div className="text-sm font-semibold text-slate-900">{d.titolo}</div>
+            <button className="text-left text-sm font-semibold text-[#0a3b7c] hover:underline" onClick={() => onOpenDeal(d.id)} data-testid={`person-deal-link-${d.id}`}>{d.titolo}</button>
             <div className="font-mono text-sm">{fmtMoney(d.valore)}</div>
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -83,7 +83,7 @@ const Panoramica = ({ data, person }) => {
   );
 };
 
-const ActivityRow = ({ a, onChanged }) => {
+export const ActivityRow = ({ a, onChanged }) => {
   const toggle = async () => { try { await api.patch(`/activities/${a.id}`, { done: !a.done }); onChanged(); } catch (e) { toast.error(errMsg(e)); } };
   const Icon = TIPI[a.tipo]?.Icon || Circle;
   const late = !a.done && a.data < new Date().toISOString().slice(0, 10);
@@ -100,7 +100,7 @@ const ActivityRow = ({ a, onChanged }) => {
   );
 };
 
-const Timeline = ({ data, onChanged }) => {
+export const Timeline = ({ data, onChanged }) => {
   const [tab, setTab] = useState("tutti");
   const { me, isAdmin } = useApp();
   const items = [
@@ -205,7 +205,7 @@ export default function PersonDetail() {
             </dl>
           </Section>
           <Section title="Affari" testid="section-affari" action={<button onClick={() => setDealOpen(true)} className="rounded p-1 hover:bg-slate-100" data-testid="section-add-deal"><Plus className="h-4 w-4" /></button>}>
-            <DealsBlock deals={data.deals} proposte={proposte} onNew={() => setDealOpen(true)} onChanged={load} onProposal={setPropDeal} onOpenProp={setOpenProp} />
+            <DealsBlock deals={data.deals} proposte={proposte} onNew={() => setDealOpen(true)} onChanged={load} onProposal={setPropDeal} onOpenProp={setOpenProp} onOpenDeal={(did) => nav(`/affari/${did}`)} />
           </Section>
           <Section title="Panoramica" testid="section-panoramica"><Panoramica data={data.panoramica} person={p} /></Section>
           <div className="px-5 py-4 text-xs text-slate-500">Aggiornato: {fmtDateTime(p.updated_at)} · Creato: {fmtDateTime(p.created_at)} · Origine: {p.source}</div>
