@@ -355,7 +355,8 @@ async def set_name(user_id: str, body: NameIn, admin: dict = Depends(admin_only)
 
 @api.get("/config")
 async def config(member: dict = Depends(staff)):
-    return {"contratti_url": os.environ.get("CONTRATTI_URL", ""), "fasi": FASI, "etichette": ETICHETTE, "tipi": TIPI}
+    return {"contratti_url": os.environ.get("CONTRATTI_URL", ""), "fasi": FASI, "etichette": ETICHETTE, "tipi": TIPI,
+            "contratti_modalita": "live" if contratti_live() else "esempio"}
 
 
 @api.get("/admin/integrations")
@@ -866,18 +867,22 @@ async def webhook_contratti(request: Request):
 
 
 async def apply_contratti_event(body: dict):
-    ev = str(body.get("event", "")).lower()
+    if isinstance(body.get("dati"), dict):
+        body = {**body["dati"], **{k: v for k, v in body.items() if v not in (None, "")}}
+    if body.get("link_cliente") and not body.get("proposta_url"):
+        body["proposta_url"] = body["link_cliente"]
+    ev = str(body.get("event") or body.get("evento") or "").lower()
     fase = EVENT_FASE.get(ev)
     if not fase:
-        if ev not in EVENT_LOG:
-            raise HTTPException(400, "Evento non valido")
+        if not ev:
+            raise HTTPException(400, "Evento mancante")
         deal = None
         if body.get("crm_deal_id"):
             deal = await db.deals.find_one({"id": body["crm_deal_id"]}, {"_id": 0})
         if not deal and body.get("proposta_id"):
             deal = await db.deals.find_one({"proposte": str(body["proposta_id"])}, {"_id": 0})
         pid = (deal or {}).get("person_id") or body.get("crm_person_id")
-        text = EVENT_LOG[ev] + (f" · proposta {body['proposta_id']}" if body.get("proposta_id") else "") + (f" — {body['dettaglio']}" if body.get("dettaglio") else "")
+        text = EVENT_LOG.get(ev, f"Evento dal gestionale contratti: {ev.replace('_', ' ')}") + (f" · proposta {body['proposta_id']}" if body.get("proposta_id") else "") + (f" — {body['dettaglio']}" if body.get("dettaglio") else "")
         await log(text, None, kind="contratti", person_id=pid, deal_id=(deal or {}).get("id"))
         if pid:
             await db.persons.update_one({"id": pid}, {"$set": {"updated_at": now_iso()}})
@@ -886,7 +891,7 @@ async def apply_contratti_event(body: dict):
     if body.get("crm_deal_id"):
         deal = await db.deals.find_one({"id": body["crm_deal_id"]}, {"_id": 0})
     if not deal and body.get("proposta_id"):
-        deal = await db.deals.find_one({"proposta_id": str(body["proposta_id"])}, {"_id": 0})
+        deal = await db.deals.find_one({"$or": [{"proposta_id": str(body["proposta_id"])}, {"proposte": str(body["proposta_id"])}]}, {"_id": 0})
     person = None
     if not deal:
         if body.get("crm_person_id"):
@@ -915,6 +920,8 @@ async def apply_contratti_event(body: dict):
     if deal.get("status") in ("won", "lost") and fase in ("Proposta inviata", "Remind inviati"):
         await db.deals.update_one({"id": deal["id"]}, {"$set": extra})
         return {"ok": True, "deal_id": deal["id"], "fase": deal["fase"], "ignored": "affare già chiuso"}
+    if extra.get("proposta_id"):
+        await db.deals.update_one({"id": deal["id"]}, {"$addToSet": {"proposte": extra["proposta_id"]}})
     await _set_fase(deal, fase, None, extra)
     if deal.get("person_id"):
         await db.persons.update_one({"id": deal["person_id"]}, {"$set": {"updated_at": now_iso()}})
@@ -1348,6 +1355,68 @@ async def _build_local_for_live(body: PropostaIn) -> dict:
         p = await db.products.find_one({"id": r.prodotto_id}, {"_id": 0, "nome": 1})
         names.append({"nome": (p or {}).get("nome", "Proposta"), "prodotto_id": r.prodotto_id})
     return {"person": person, "righe": names, "totale": 0}
+
+
+class BuilderLinkIn(BaseModel):
+    person_id: str
+    deal_id: Optional[str] = None
+
+
+class BuilderSentIn(BaseModel):
+    person_id: str
+    deal_id: Optional[str] = None
+    proposta_id: str
+    link_cliente: Optional[str] = None
+
+
+async def _open_deal_without_proposals(person_id):
+    return await db.deals.find_one({"person_id": person_id, "status": "open", "proposte": {"$in": [None, []]}}, {"_id": 0}, sort=[("created_at", -1)])
+
+
+@api.post("/contratti/link-builder")
+async def builder_link(body: BuilderLinkIn, member: dict = Depends(staff)):
+    if not contratti_live():
+        raise HTTPException(409, "Gestionale contratti non collegato")
+    p = await db.persons.find_one({"id": body.person_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(404, "Contatto non trovato")
+    deal_id = body.deal_id or (await _open_deal_without_proposals(p["id"]) or {}).get("id")
+    res = await remote("POST", "/link-builder", member, {
+        "email_commerciale": member.get("email"), "nome": p.get("nome"), "cognome": p.get("cognome"), "email": p.get("email"),
+        "telefono": p.get("telefono"), "citta": p.get("citta"), "professione": p.get("professione"), "prodotto": p.get("prodotto_id"),
+        "crm_person_id": p["id"], "crm_deal_id": deal_id})
+    url = res.get("url") or res.get("link")
+    if not url:
+        token = res.get("t") or res.get("token")
+        if not token:
+            raise HTTPException(502, "Il gestionale contratti non ha restituito il link firmato")
+        url = f"{os.environ['CONTRATTI_URL'].rstrip('/')}/incorpora/nuova-proposta?t={token}"
+    return {"url": url, "crm_deal_id": deal_id}
+
+
+@api.post("/contratti/builder-inviata")
+async def builder_sent(body: BuilderSentIn, member: dict = Depends(staff)):
+    """Called by the page hosting the iframe when the builder posts {tipo: 'proposta_inviata'}; idempotent with the webhook."""
+    deal = await db.deals.find_one({"$or": [{"proposte": body.proposta_id}, {"proposta_id": body.proposta_id}]}, {"_id": 0})
+    if not deal and body.deal_id:
+        deal = await db.deals.find_one({"id": body.deal_id}, {"_id": 0})
+    if not deal:
+        deal = await _open_deal_without_proposals(body.person_id)
+    if not deal:
+        p = await db.persons.find_one({"id": body.person_id}, {"_id": 0})
+        if not p:
+            raise HTTPException(404, "Contatto non trovato")
+        deal = {"id": new_id(), "titolo": p.get("prodotto_richiesto") or "Proposta", "valore": 0, "person_id": p["id"], "org_id": p.get("org_id"),
+                "owner_id": member["user_id"], "fase": "Contatto chiamato", "status": "open", "origine": "Proposta",
+                "created_at": now_iso(), "updated_at": now_iso(), "fase_since": now_iso()}
+        await db.deals.insert_one(dict(deal))
+        await log(f"Affare creato: {deal['titolo']}", member, kind="deal", person_id=p["id"], deal_id=deal["id"])
+    await db.deals.update_one({"id": deal["id"]}, {"$addToSet": {"proposte": body.proposta_id},
+                                                   "$set": {"proposta_id": body.proposta_id, "proposta_url": body.link_cliente,
+                                                            "owner_id": deal.get("owner_id") or member["user_id"]}})
+    if deal.get("status") == "open" and FASI.index(deal["fase"]) < FASI.index("Proposta inviata"):
+        await _set_fase(deal, "Proposta inviata", member)
+    return {"ok": True, "deal_id": deal["id"]}
 
 
 async def _ensure_deal(body: PropostaIn, b: dict, member: dict):

@@ -8,7 +8,7 @@ import { FASI, FASE_COLORS, AUTO_FASI, fmtDate, fmtDateTime, fmtMoney, initials 
 import { LabelList } from "@/components/LabelPill";
 import { ActivityForm } from "@/components/ActivityForm";
 import { ProductMulti } from "@/components/ProductSelect";
-import { ProposalDialog } from "@/components/ProposalDialog";
+import { NewProposal } from "@/components/NewProposal";
 import { ProposalPanel, StatoPill } from "@/components/ProposalPanel";
 import { Section, ActivityRow, Timeline } from "@/pages/PersonDetail";
 
@@ -220,7 +220,7 @@ export default function DealDetail() {
           <div><h3 className="mb-3 font-display text-base font-semibold">Cronologia dell'affare</h3><Timeline data={data} onChanged={load} /></div>
         </div>
       </div>
-      <ProposalDialog open={propOpen} onOpenChange={setPropOpen} deal={d} onSaved={(pr) => { load(); setOpenProp(pr.id); }} />
+      <NewProposal open={propOpen} onOpenChange={setPropOpen} deal={d} person={data.person} onDeal={load} onProposal={(pr) => { load(); setOpenProp(pr.id); }} />
       <ProposalPanel propId={openProp} onOpenChange={() => setOpenProp(null)} onChanged={load} mode={mode} />
     </div>
   );

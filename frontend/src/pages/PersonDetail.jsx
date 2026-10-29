@@ -9,7 +9,7 @@ import { LabelPicker } from "@/components/LabelPill";
 import { PersonDialog } from "@/components/PersonDialog";
 import { ActivityForm } from "@/components/ActivityForm";
 import { ActivityCard } from "@/components/ActivityCard";
-import { ProposalDialog } from "@/components/ProposalDialog";
+import { NewProposal } from "@/components/NewProposal";
 import { ProposalPanel, StatoPill } from "@/components/ProposalPanel";
 
 export const Section = ({ title, children, action, testid }) => {
@@ -218,8 +218,8 @@ export default function PersonDetail() {
         </div>
       </div>
       <PersonDialog open={edit} onOpenChange={setEdit} person={p} onSaved={load} />
-      <ProposalDialog open={dealOpen} onOpenChange={setDealOpen} person={p} onSaved={(pr) => nav(`/affari/${pr.crm_deal_id}`)} />
-      <ProposalDialog open={!!propDeal} onOpenChange={(o) => !o && setPropDeal(null)} deal={propDeal} onSaved={(pr) => { load(); setOpenProp(pr.id); }} />
+      <NewProposal open={dealOpen} onOpenChange={setDealOpen} person={p} onDeal={(id) => nav(`/affari/${id}`)} />
+      <NewProposal open={!!propDeal} onOpenChange={(o) => !o && setPropDeal(null)} deal={propDeal} person={p} onDeal={load} onProposal={(pr) => { load(); setOpenProp(pr.id); }} />
       <ProposalPanel propId={openProp} onOpenChange={() => setOpenProp(null)} onChanged={load} mode={mode} />
       <span className="hidden">{config.contratti_url}</span>
     </div>

@@ -164,7 +164,8 @@ class TestContrattiWebhook:
         assert r.status_code == 200
         r = requests.post(f"{base}/webhooks/contratti", headers=h, json={"event": "perso", "crm_deal_id": did, "motivo": "Prezzo"})
         assert r.json()["fase"] == "Perso"
-        assert requests.post(f"{base}/webhooks/contratti", headers=h, json={"event": "boh"}).status_code == 400
+        assert requests.post(f"{base}/webhooks/contratti", headers=h, json={"event": "boh"}).status_code == 200
+        assert requests.post(f"{base}/webhooks/contratti", headers=h, json={}).status_code == 400
         d = luca.get(f"{base}/persons/{pid}").json()
         deal = next(x for x in d["deals"] if x["id"] == did)
         assert deal["status"] == "lost" and deal["motivo_perso"] == "Prezzo"
