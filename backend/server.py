@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import Optional, List
 
 import requests
 from dotenv import load_dotenv
@@ -71,7 +71,7 @@ async def current_member(user: dict = Depends(require_user)) -> dict:
     uid = user["user_id"]
     member = await db.users.find_one({"user_id": uid}, {"_id": 0})
     if member is None or not member.get("role"):
-        prof = _clerk_profile(uid)
+        prof = await run_in_threadpool(_clerk_profile, uid)
         role = "admin" if prof["is_admin"] else DEFAULT_ROLE
         await db.users.update_one({"user_id": uid, "role": {"$in": [None, ""]}}, {"$set": {"role": role}})
         member = await db.users.find_one_and_update(
@@ -430,7 +430,7 @@ async def delete_person(pid: str, admin: dict = Depends(admin_only)):
     await db.activities.delete_many({"person_id": pid})
     await db.notes.delete_many({"person_id": pid})
     await db.history.delete_many({"person_id": pid})
-    await db.deals.update_many({"person_id": pid}, {"$set": {"person_id": None}})
+    await db.deals.delete_many({"person_id": pid})
     return {"ok": True}
 
 
@@ -810,6 +810,9 @@ async def apply_contratti_event(body: dict):
         extra["valore"] = float(body["valore"])
     if body.get("motivo"):
         extra["motivo_perso"] = body["motivo"]
+    if deal.get("status") in ("won", "lost") and fase in ("Proposta inviata", "Remind inviati"):
+        await db.deals.update_one({"id": deal["id"]}, {"$set": extra})
+        return {"ok": True, "deal_id": deal["id"], "fase": deal["fase"], "ignored": "affare già chiuso"}
     await _set_fase(deal, fase, None, extra)
     if deal.get("person_id"):
         await db.persons.update_one({"id": deal["person_id"]}, {"$set": {"updated_at": now_iso()}})
@@ -828,7 +831,7 @@ async def webhook_leads(request: Request):
     dups = await find_duplicates(data.get("email"), data.get("telefono"))
     if dups:
         existing = await db.persons.find_one({"id": dups[0]["id"]}, {"_id": 0})
-        upd = {"updated_at": now_iso()}
+        upd = {"updated_at": now_iso(), **{k: v for k, v in data.items() if not existing.get(k)}}
         if not existing.get("owner_id"):
             upd["da_assegnare"] = True
         await db.persons.update_one({"id": existing["id"]}, {"$set": upd, "$addToSet": {"etichette": "Ha richiesto info"}})
@@ -1014,7 +1017,12 @@ async def import_rows(kind: str, body: ImportIn, admin: dict = Depends(admin_onl
                 p = await R.person(r.get("person_pipedrive_id"), r.get("persona"), r.get("email"))
                 fase = map_fase(r.get("fase"), r.get("stato"))
                 try:
-                    valore = float(str(r.get("valore") or "0").replace("€", "").replace(".", "").replace(",", ".").strip() or 0) if r.get("valore") and "," in r["valore"] else float(r.get("valore") or 0)
+                    v = re.sub(r"[^\d,.\-]", "", r.get("valore") or "0")
+                    if "," in v:
+                        v = v.replace(".", "").replace(",", ".")
+                    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", v):
+                        v = v.replace(".", "")
+                    valore = float(v or 0)
                 except ValueError:
                     valore = 0
                 data = {"titolo": r["titolo"], "valore": valore, "person_id": p["id"] if p else None,
@@ -1153,11 +1161,13 @@ async def _build_proposta(body: PropostaIn, member: dict) -> dict:
     totale = round(sum(r["totale"] for r in righe), 2)
     sotto_minimo = any(r["totale"] / r["quantita"] < r["prezzo_minimo"] for r in righe)
     nome = person.get("nome") or person["full_name"]
-    elenco = "\n".join(f"• {r['nome']} × {r['quantita']}" + (f" (sconto {r['sconto_pct']:g}%)" if r["sconto_pct"] else "") + f": € {r['totale']:.2f}" for r in righe)
+    eur = lambda v: "€ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")  # noqa: E731
+    elenco = "\n".join(f"• {r['nome']} × {r['quantita']}" + (f" (sconto {r['sconto_pct']:g}%)" if r["sconto_pct"] else "") + f": {eur(r['totale'])}" for r in righe)
+    scad = datetime.fromisoformat(body.scadenza).strftime("%d/%m/%Y")
     rate_txt = f" in {body.num_rate} rate" if body.modalita_pagamento == "rate" else ""
     email = {"a": person["email"], "oggetto": f"ITALIACORSI – La tua proposta per {righe[0]['nome']}",
-             "corpo": f"Gentile {nome},\n\ncome concordato le inviamo la proposta personalizzata:\n\n{elenco}\n\nTotale: € {totale:.2f}\n"
-                      f"Pagamento: {PAGAMENTI[body.modalita_pagamento]}{rate_txt}\nLa proposta è valida fino al {body.scadenza}.\n\n"
+             "corpo": f"Gentile {nome},\n\ncome concordato le inviamo la proposta personalizzata:\n\n{elenco}\n\nTotale: {eur(totale)}\n"
+                      f"Pagamento: {PAGAMENTI[body.modalita_pagamento]}{rate_txt}\nLa proposta è valida fino al {scad}.\n\n"
                       f"Può visualizzarla e accettarla dal link qui sotto.\n\nCordiali saluti,\n{member['name']}\nITALIACORSI"}
     return {"deal": deal, "person": person, "righe": righe, "totale": totale, "sotto_minimo": sotto_minimo, "email": email}
 

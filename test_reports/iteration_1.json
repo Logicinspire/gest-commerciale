@@ -1,0 +1,48 @@
+{
+  "summary": "First full run on ITALIACORSI CRM. Backend: 18/18 pytest pass (/app/backend/tests/test_crm_api.py, run with -n 0) covering role enforcement (401/403), POST /persons duplicate 409 + force, leads webhook (secret, create da_assegnare + 'Contatto ricevuto' deal, duplicate merge by +39 phone), take/409 on second take, activities CRUD + period filters + counts, pipeline + PATCH fase history, contratti webhook (401 wrong secret, fase events, non-fase events logged, motivo_perso), full mock contratti flow (anteprima, create draft/invia, invia 409, reinvia, promemoria PATCH, proroga validation, LMS 409 before accepted, fattura 404 before paid, simula apertura/promemoria/accettata/pagamento x3 rate/perso, deal fase sync, fattura_emessa log), import persons/orgs/deals/activities/notes with pipedrive_id dedupe, cron 401, 7 active products, admin delete. Frontend (Clerk ticket sign-in as Angelo admin and Luca commerciale): contacts table, create-person live duplicate warning, deep link + full reload on /contatti/da-assegnare and /attivita WORK (no redirect to /contatti), Prendo io, labels picker, edit person, add note, activity form (type buttons, quick presets, mini day calendar follows date), planned activity quick reschedule, timeline tabs, Crea proposta -> anteprima (sotto minimo warning) -> Crea e invia -> sheet panel; simulate buttons, LMS, 3 installments paid -> fattura link, deal fase select updates (Proposta inviata -> Aggiudicato). Affari kanban drag&drop works and list view; Attivita filters/mark done/Richiama; Import CSV parse+auto-mapping+import (Creati 2); Utenti role change persists after reload; Collegamenti shows secrets/products; global search; sign-out returns to /sign-in. Commerciale UI hides admin nav/delete button and /importa shows admin-only message. No functional bugs found; only minor issues below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/persons/{id}", "issue": "Deals of the deleted person are kept with person_id=None and keep showing in pipeline/kanban as orphan cards ('—'). Linked mock_proposte also remain. Decide: delete deals or block deletion/ask in confirm."},
+      {"endpoint": "POST /api/webhooks/contratti", "issue": "Fase events are applied regardless of current fase, so a late/out-of-order 'remind_inviato' or 'proposta_inviata' moves an Aggiudicato/Perso deal backwards. Consider ignoring regressions from closed deals."},
+      {"endpoint": "POST /api/import/deals", "issue": "valore parsing: '1.500' (Italian thousands without comma) becomes 1.5; only strings containing ',' get thousands-dot stripping."},
+      {"endpoint": "current_member (/api/me first call)", "issue": "_clerk_profile uses blocking requests.get inside async dependency; wrap in run_in_threadpool."},
+      {"endpoint": "POST /api/webhooks/leads", "issue": "On duplicate match only label/log/new deal are added; new info from the lead (e.g. email when matched by phone, professione, citta) is discarded."},
+      {"endpoint": "POST /api/contratti/proposte (mock)", "issue": "Proposal id derived from count_documents()+1 -> race/duplicate ids under concurrent creation."},
+      {"endpoint": "check_secret", "issue": "Secret also accepted via ?key= query param (leaks into access logs). Optional hardening."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DealsPage Kanban/List", "issue": "No loading state: board/list render empty (and '0 affari') until /deals/pipeline resolves", "selector": "[data-testid='deals-kanban']", "priority": "LOW"},
+      {"component": "PersonDetail delete / DealList delete", "issue": "del() handlers have no try/catch -> unhandled rejection with no toast on API error", "selector": "[data-testid='delete-person-btn']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global", "issues": ["Sonner toasts top-right cover the header user menu/role badge and the ProposalPanel sheet close (X) button", "Native browser date/time/datetime-local pickers used (activity form, person primo contatto, proposal scadenza/proroga, promemoria) instead of shadcn Calendar", "Console a11y warning: DialogContent without DialogTitle (Radix)"]},
+      {"screen": "Proposal email preview", "issues": ["Scadenza shown as ISO '2026-11-05' and amounts '€ 894.00' – use Italian formatting (05/11/2026, € 894,00)"]},
+      {"screen": "Sidebar", "issues": ["Icon-only nav without visible labels; ensure tooltips/title for discoverability"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_api.py", "/app/backend/tests/conftest.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Decide behaviour of orphan deals when a person is deleted (delete deals or warn)",
+    "Prevent backward fase moves from contratti webhook on closed deals",
+    "Fix Italian number parsing in deal import ('1.500')",
+    "Add loading state to Kanban/List and try/catch on delete handlers",
+    "Move toaster position or offset so it doesn't cover header/sheet close button; consider shadcn date pickers; Italian date/amount formatting in proposal email"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1476 lines – split into routers (persons, deals, activities, webhooks, import, contratti, products)",
+    "Blocking requests.get in async current_member (_clerk_profile)",
+    "PersonDetail ActivityRow 'late' uses UTC date (new Date().toISOString()) vs backend Europe/Rome – mismatch around midnight"
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_api.py", "/app/backend/tests/conftest.py", "/app/backend/tests/make_ticket.py", "/app/backend/tests/make_ui_lead.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of tested flows (minor design issues only)"},
+  "test_credentials": "Per /app/memory/test_credentials.md: angelo+clerk_test (admin), luca/carla+clerk_test (commerciale), nuovo+clerk_test (in_attesa). Tokens via tests/make_test_users.py; UI ticket via `python tests/make_ticket.py [Angelo|Luca|Carla|Nuovo]`.",
+  "seed_data_creation": "All TEST_ data cleaned up (persons, deals, orgs). DB back to only 'Mario Rossi'. mock_proposte from test runs remain (PR-2026-000x). Nuovo role restored to in_attesa.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `cd /app/backend && python tests/make_test_users.py && python -m pytest tests/test_crm_api.py -n 0` (pytest.ini enables xdist; tests share state so must be serial). UI login: `python tests/make_ticket.py Angelo` -> open <preview>/sign-in?__clerk_ticket=<t>, wait for [data-testid=sidebar]. Tickets are single-use. Not tested: /api/cron/sync-prodotti with valid WEBHOOK_CRON_SECRET (not readable without opening .env), in_attesa waiting UI, org detail page, CSV import of deals/activities/notes via UI (API tested).",
+  "rca of the issue": "Deep link concern from main agent not reproduced: after ticket sign-in, page.goto + reload on /contatti/da-assegnare and /attivita stay on the deep link."
+}
