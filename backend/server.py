@@ -282,6 +282,10 @@ class ActivityIn(BaseModel):
     deal_id: Optional[str] = None
     org_id: Optional[str] = None
     owner_id: Optional[str] = None
+    oggetto_base: Optional[str] = None
+    rimando_n: Optional[int] = None
+    rimando_di: Optional[str] = None
+    catena_id: Optional[str] = None
 
 
 class NoteIn(BaseModel):
@@ -756,6 +760,23 @@ async def create_activity(body: ActivityIn, member: dict = Depends(staff)):
     return doc
 
 
+@api.get("/activities/{aid}/storico")
+async def activity_chain(aid: str, member: dict = Depends(staff)):
+    a = await db.activities.find_one({"id": aid}, {"_id": 0})
+    if not a:
+        raise HTTPException(404, "Attività non trovata")
+    chain, cur = [], a
+    while cur.get("rimando_di") and len(chain) < 50:
+        cur = await db.activities.find_one({"id": cur["rimando_di"]}, {"_id": 0})
+        if not cur:
+            break
+        chain.append(cur)
+    chain.reverse()
+    root = chain[0]["id"] if chain else a["id"]
+    later = await db.activities.find({"catena_id": root, "id": {"$nin": [x["id"] for x in chain] + [aid]}, "rimando_n": {"$gt": a.get("rimando_n") or 0}}, {"_id": 0}).sort("rimando_n", 1).to_list(50)
+    return chain + [a] + later
+
+
 @api.patch("/activities/{aid}")
 async def update_activity(aid: str, body: ActivityIn, member: dict = Depends(staff)):
     a = await db.activities.find_one({"id": aid}, {"_id": 0})
@@ -764,6 +785,8 @@ async def update_activity(aid: str, body: ActivityIn, member: dict = Depends(sta
     data = body.model_dump(exclude_unset=True)
     if "tipo" in data and data["tipo"] not in TIPI:
         raise HTTPException(400, "Tipo attività non valido")
+    if data.get("note") and data["note"] != a.get("note"):
+        data["note_at"] = now_iso()
     if data.get("done") is True and not a.get("done"):
         data["done_at"] = now_iso()
         if a.get("person_id"):
