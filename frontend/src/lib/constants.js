@@ -44,7 +44,7 @@ export const fmtDate = (s, pattern = "d MMMM yyyy") => {
   try { return format(parseISO(s), pattern, { locale: it }); } catch { return s; }
 };
 export const fmtDateTime = (s) => fmtDate(s, "d MMM yyyy HH:mm");
-export const fmtMoney = (v) => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v || 0);
+export const fmtMoney = (v) => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" }).format(v || 0);
 
 export const initials = (name) => (name || "?").split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 

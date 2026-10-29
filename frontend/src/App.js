@@ -81,7 +81,7 @@ function App() {
             <Show when="signed-out"><Navigate to="/sign-in" replace /></Show>
           </>} />
         </Routes>
-        <Toaster position="bottom-right" richColors />
+        <Toaster position="top-center" richColors />
       </ClerkAuthProvider>
     </BrowserRouter>
   );

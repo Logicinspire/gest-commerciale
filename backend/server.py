@@ -128,6 +128,10 @@ def new_id():
     return str(uuid.uuid4())
 
 
+def eur_it(v):
+    return "€ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def norm_email(e):
     e = (e or "").strip().lower()
     return e or None
@@ -617,6 +621,8 @@ async def update_deal(did: str, body: DealIn, member: dict = Depends(staff)):
     if not d:
         raise HTTPException(404, "Affare non trovato")
     data = body.model_dump(exclude_unset=True)
+    if "titolo" in data and not (data["titolo"] or "").strip():
+        raise HTTPException(400, "Titolo obbligatorio")
     fase = data.pop("fase", None)
     if "owner_id" in data and member["role"] != "admin" and d.get("owner_id") not in (None, member["user_id"]):
         data.pop("owner_id")
@@ -638,6 +644,9 @@ async def delete_deal(did: str, admin: dict = Depends(admin_only)):
     if r.deleted_count == 0:
         raise HTTPException(404, "Affare non trovato")
     await db.activities.update_many({"deal_id": did}, {"$set": {"deal_id": None}})
+    await db.notes.update_many({"deal_id": did}, {"$set": {"deal_id": None}})
+    await db.history.delete_many({"deal_id": did, "person_id": None})
+    await db.mock_proposte.delete_many({"crm_deal_id": did})
     return {"ok": True}
 
 
@@ -1193,7 +1202,7 @@ async def _build_proposta(body: PropostaIn, member: dict) -> dict:
     totale = round(sum(r["totale"] for r in righe), 2)
     sotto_minimo = any(r["totale"] / r["quantita"] < r["prezzo_minimo"] for r in righe)
     nome = person.get("nome") or person["full_name"]
-    eur = lambda v: "€ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")  # noqa: E731
+    eur = eur_it
     elenco = "\n".join(f"• {r['nome']} × {r['quantita']}" + (f" (sconto {r['sconto_pct']:g}%)" if r["sconto_pct"] else "") + f": {eur(r['totale'])}" for r in righe)
     scad = datetime.fromisoformat(body.scadenza).strftime("%d/%m/%Y")
     rate_txt = f" in {body.num_rate} rate" if body.modalita_pagamento == "rate" else ""
@@ -1278,7 +1287,7 @@ async def proposta_create(body: PropostaIn, member: dict = Depends(staff)):
     await db.mock_proposte.insert_one(dict(p))
     await db.deals.update_one({"id": body.deal_id}, {"$addToSet": {"proposte": pid}, "$set": {"valore": b["totale"], "proposta_id": pid,
                                                                                           "prodotti": [r["prodotto_id"] for r in b["righe"]], "updated_at": now_iso()}})
-    await log(f"Proposta {pid} creata da {member['name']} · € {b['totale']:.2f}", member, kind="contratti", person_id=b["person"]["id"], deal_id=body.deal_id)
+    await log(f"Proposta {pid} creata da {member['name']} · {eur_it(b['totale'])}", member, kind="contratti", person_id=b["person"]["id"], deal_id=body.deal_id)
     if body.invia:
         _mock_send(p, member)
         await _mock_save(p, "proposta_inviata", valore=p["totale"])

@@ -10,6 +10,7 @@ Replace Pipedrive for the ITALIACORSI sales team (commerciale.italiacorsi.it). T
 - Contratti client: CONTRATTI_API_URL/KEY. While these are empty, SAMPLE data (MOCKED) is used. Cron /api/cron/sync-prodotti runs hourly (.emergent/crons.yml)
 
 ## Implemented (2026-06)
+- Deal page /affari/:id (Pipedrive-like): stage bar, Aggiudicato/Perso/Riapri, Crea proposta, summary (value, label, expected date, owner), proposals, details, person, products, overview, notes/activities linked to the deal, deal timeline
 - Contacts: people and organisations, labels, duplicate warning, Da assegnare + Prendo io, admin assignment
 - Contact page: summary, details, deals (with Crea proposta), overview, notes, activity form with presets and a day mini-calendar, planned activities, timeline
 - Deals: kanban with drag and drop, and a list view. Activities: filters, mark done, quick reschedule

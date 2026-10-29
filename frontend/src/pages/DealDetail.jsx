@@ -43,7 +43,10 @@ const Summary = ({ data, onSave }) => {
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({});
   useEffect(() => { setF({ titolo: d.titolo, valore: d.valore, etichetta: d.etichetta || "", data_prevista: d.data_prevista || "", owner_id: d.owner_id || "" }); }, [d]);
-  const save = async () => { await onSave({ ...f, valore: Number(f.valore) || 0, etichetta: f.etichetta || null, data_prevista: f.data_prevista || null, owner_id: f.owner_id || null }); setEdit(false); };
+  const save = async () => {
+    if (!f.titolo?.trim()) return toast.error("Titolo obbligatorio");
+    if (await onSave({ ...f, valore: Number(f.valore) || 0, etichetta: f.etichetta || null, data_prevista: f.data_prevista || null, owner_id: f.owner_id || null })) setEdit(false);
+  };
   if (edit) {
     return (
       <div className="space-y-2" data-testid="deal-edit-form">
@@ -115,7 +118,7 @@ export default function DealDetail() {
   if (!data) return <div className="p-10 text-sm text-slate-500">Caricamento…</div>;
   const d = data.deal;
   const p = data.person;
-  const patch = async (body, ok = "Affare aggiornato") => { try { await api.patch(`/deals/${id}`, body); toast.success(ok); load(); } catch (e) { toast.error(errMsg(e)); } };
+  const patch = async (body, ok = "Affare aggiornato") => { try { await api.patch(`/deals/${id}`, body); toast.success(ok); load(); return true; } catch (e) { toast.error(errMsg(e)); return false; } };
   const addNote = async () => { if (!note.trim()) return; try { await api.post("/notes", { content: note, deal_id: id, person_id: d.person_id }); setNote(""); toast.success("Nota salvata"); load(); } catch (e) { toast.error(errMsg(e)); } };
   const del = async () => { if (!window.confirm(`Eliminare l'affare ${d.titolo}?`)) return; try { await api.delete(`/deals/${id}`); toast.success("Affare eliminato"); nav("/affari"); } catch (e) { toast.error(errMsg(e)); } };
   const planned = data.activities.filter((a) => !a.done);

@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 2 tested the new deal detail page (Pagina Affare) and ran a quick regression. Backend: 27/27 pytest pass. That is 9 new tests in /app/backend/tests/test_deal_detail.py plus the 18 from iteration 1. The new tests cover: GET /deals/{id} structure, the panoramica fields and the labels list; 404 for an unknown deal and 401 without a token; PATCH of etichetta/data_prevista/valore/prodotti, which logs 'Affare modificato: <fields>' with deal_id, and a PATCH that changes nothing logs nothing; fase_prev is set on Aggiudicato, kept on Aggiudicato->Perso, and reopening to fase_prev gives status open; contratti webhook proposta_inviata/remind_inviato on a won deal is ignored and returns ignored='affare già chiuso', while 'perso' still applies; a note on the deal shows on both the deal and the person; an activity with deal_id shows in the deal's activities; deleting a person deletes their deals (GET returns 404). Frontend, signed in through a Clerk ticket as Angelo (admin) and Luca (commerciale), all requested flows work. Header: title, owner, IN CORSO/AGGIUDICATO/PERSO badge, Aggiudicato/Perso buttons, Riapri when closed (returns to fase_prev), Crea proposta, admin-only delete (hidden for Luca). Clicking a stage chevron changes fase and shows the '0g ·' counter. Riepilogo edit (titolo, valore, etichetta Molto probabile/Ci pensa, data prevista) persists after reload; the owner select is hidden for a commerciale who does not own the deal. Prodotti checklist adds 2 products and the button changes to 'Modifica prodotti'. Dettagli shows the aggiudicazione/chiusura dates after winning. The Persona link opens the person page. Panoramica renders. A note saved on the deal appears in the deal timeline and the person timeline. The Attività tab preselects the deal; a saved activity appears in 'Nell'occhio del mirino' and on the person. Navigation to the deal page works from the kanban card, the list row (deal-row-<id>), person-deal-link-<id> and global search; an unknown id redirects to /affari. Crea proposta prefills rows from the deal products, the preview shows Italian formatting (€ 360,00, 05/11/2026), and 'Crea e invia' opens the proposal sheet. The proposal then appears in Proposte (PR-2026-0013 INVIATA), the fase becomes Proposta inviata and the valore is synced to 650 €. Person detail page regression: OK. Only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/deals/{id}", "issue": "Accepts an empty titolo ({\"titolo\": \"\"} returns 200 and the deal has a blank title). POST validates titolo; PATCH does not. The frontend Riepilogo edit also allows saving an empty title."},
+      {"endpoint": "POST /api/contratti/proposte (mock)", "issue": "History text 'Proposta PR-... creata da X · € 650.00' uses non-Italian number format (should be € 650,00)."},
+      {"endpoint": "DELETE /api/deals/{id}", "issue": "Only activities are unlinked; notes/history with that deal_id and mock_proposte stay orphaned."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DealDetail Summary edit", "issue": "save() always calls setEdit(false). patch() swallows errors with a toast, so on API failure the form closes and the user's edits are lost.", "selector": "[data-testid='deal-edit-save']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Deal page / global", "issues": ["fmtMoney (it-IT, maximumFractionDigits 0) shows '1250 €' with no thousands separator, because the it-IT locale only groups numbers of 5+ digits by default. Add useGrouping: 'always' to get '1.250 €'.", "The bottom-right toast covers the simulate buttons in the ProposalPanel sheet (Pagamento ricevuto / Cliente rifiuta) for a few seconds.", "Native date inputs are still used: deal-edit-data-prevista, activity date/time, proposal scadenza."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_deal_detail.py", "/app/backend/tests/test_crm_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Validate a non-empty titolo in PATCH /deals/{id}, and in the Riepilogo edit form",
+    "Keep the Summary edit form open when the PATCH fails",
+    "Optional: use Italian formatting in the 'Proposta creata' history text; set useGrouping 'always' in fmtMoney; clean up notes/history/proposals when a deal is deleted"
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 1519 lines. Split it into routers (deals, persons, activities, webhooks, contratti, import).",
+    "apply_contratti_event finds the deal by the 'proposte' array for log events but by 'proposta_id' for fase events. This works today because both fields are written, but it is inconsistent.",
+    "DealDetail load() fires 2 requests with no error handling for /contratti/stato. If it fails, mode stays 'esempio' and the error is silent."
+  ],
+  "updated_files": ["/app/backend/tests/test_deal_detail.py", "/app/backend/tests/make_ui_deal.py"],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% of requested flows (minor issues only)"},
+  "test_credentials": "Per /app/memory/test_credentials.md: angelo+clerk_test (admin), luca+clerk_test (commerciale). Tokens via tests/make_test_users.py; UI ticket via tests/make_ticket.py <Name>.",
+  "seed_data_creation": "UI seed via `python tests/make_ui_deal.py` (TEST_UI person + deal). It was deleted after the run (cascade). No TEST_ deals remain. New mock proposal PR-2026-0013 remains in mock_proposte.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `cd /app/backend && python tests/make_test_users.py && python -m pytest tests/test_deal_detail.py tests/test_crm_api.py -n 0`. For UI: `python tests/make_ui_deal.py` gives pid/did, then `python tests/make_ticket.py Angelo` and open /sign-in?__clerk_ticket=<t>. Tickets are single-use. Not tested: drag&drop on the kanban in this iteration, ProposalPanel actions from the deal page beyond opening, the OrgDetail page."
+}
