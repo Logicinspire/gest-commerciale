@@ -1,0 +1,8 @@
+crons:
+  - name: sync-prodotti
+    description: "Aggiorna ogni ora l'elenco prodotti letto dal gestionale contratti"
+    cron: "0 * * * *"
+    endpoint: "{{BASE_URL}}/api/cron/sync-prodotti"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

@@ -1,0 +1,125 @@
+{
+  "project_name": "ITALIACORSI CRM Commerciale",
+  "domain": "commerciale.italiacorsi.it",
+  "app_type": "dashboard / CRM saas_app",
+  "archetype": "THE PERFORMANCE PRO / SWISS HIGH DENSITY CRM",
+  "language": "Italian",
+  "theme": "hybrid_pipedrive_dark_sidebar_light_content",
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "DM Sans, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "h1": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
+    "h2": "text-xl sm:text-2xl font-semibold text-slate-900",
+    "h3": "text-lg font-medium text-slate-800",
+    "card_title": "text-sm font-bold uppercase tracking-wider text-slate-500",
+    "table_header": "text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-100",
+    "body": "text-sm leading-relaxed text-slate-700",
+    "small_label": "text-xs font-medium text-slate-600"
+  },
+  "colors": {
+    "brand_primary_navy": "#0a3b7c",
+    "brand_primary_navy_dark": "#06234d",
+    "brand_accent_gold": "#C9A227",
+    "brand_accent_gold_hover": "#b08d1f",
+    "sidebar_bg": "#071c38",
+    "sidebar_active": "#0a3b7c",
+    "sidebar_hover": "#102d57",
+    "surface_bg": "#f4f6f9",
+    "card_bg": "#ffffff",
+    "border_color": "#e2e8f0",
+    "text_dark": "#0f172a",
+    "text_muted": "#64748b",
+    "contact_labels": {
+      "Ha richiesto info": { "bg": "#e0f2fe", "text": "#0369a1", "border": "#bae6fd" },
+      "Interessato": { "bg": "#fef3c7", "text": "#b45309", "border": "#fde68a" },
+      "Già cliente": { "bg": "#dcfce7", "text": "#15803d", "border": "#bbf7d0" },
+      "Richiama lui": { "bg": "#f3e8ff", "text": "#6b21a8", "border": "#e9d5ff" },
+      "Fuori target": { "bg": "#f1f5f9", "text": "#475569", "border": "#e2e8f0" },
+      "Negativo": { "bg": "#ffe4e6", "text": "#be123c", "border": "#fecdd3" },
+      "Non risponde mai": { "bg": "#ffedd5", "text": "#c2410c", "border": "#fed7aa" },
+      "Valuta": { "bg": "#e0e7ff", "text": "#4338ca", "border": "#c7d2fe" },
+      "Aspetto contratto": { "bg": "#fef9c3", "text": "#854d0e", "border": "#fef08a" }
+    },
+    "deal_stages": {
+      "Contatto ricevuto": "#3b82f6",
+      "Contatto chiamato": "#6366f1",
+      "Proposta inviata": "#C9A227",
+      "Remind inviati": "#8b5cf6",
+      "Aggiudicato": "#10b981",
+      "Perso": "#ef4444"
+    }
+  },
+  "users": [
+    { "id": "u1", "name": "Angelo", "role": "admin", "avatar": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHxfidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwdXNlciUyMGF2YXRhcnxlbnwwfHx8fDE3OTMyNzQ5MjJ8MA&ixlib=rb-4.1.0&q=85" },
+    { "id": "u2", "name": "Luca", "role": "commerciale", "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHxfidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwdXNlciUyMGF2YXRhcnxlbnwwfHx8fDE3OTMyNzQ5MjJ8MA&ixlib=rb-4.1.0&q=85" },
+    { "id": "u3", "name": "Cristina", "role": "commerciale", "avatar": "https://images.unsplash.com/photo-1607746882042-944635dfe10e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHxfidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwdXNlciUyMGF2YXRhcnxlbnwwfHx8fDE3OTMyNzQ5MjJ8MA&ixlib=rb-4.1.0&q=85" },
+    { "id": "u4", "name": "Carla", "role": "commerciale", "avatar": "https://images.unsplash.com/photo-1527980965255-d3b416303d12?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHxfidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0JTIwdXNlciUyMGF2YXRhcnxlbnwwfHx8fDE3OTMyNzQ5MjJ8MA&ixlib=rb-4.1.0&q=85" }
+  ],
+  "layout_architecture": {
+    "sidebar": "Dark left fixed icon-driven sidebar (#071c38) with ITALIACORSI logo, navigation items (Contatti, Affari, Attività, Lead da assegnare, Import CSV, Gestione Utenti), and active user profile indicator",
+    "topbar": "Light background sticky top header displaying current section title, quick global search bar, 'Crea proposta' action button (Gold #C9A227), user quick switcher, and notifications",
+    "main_content": "Dense high-utility workspace (bg-[#f4f6f9]) with generous padding (p-6), clear table grid controls, sub-nav filter bar, and modal overlay drawers"
+  },
+  "key_sections": {
+    "contatti": {
+      "tabs": ["Tutti i Contatti", "Persone", "Organizzazioni", "Da Assegnare"],
+      "unassigned_queue": "Lead in attesa di assegnazione con badge highlighted e bottone primario 'Prendo io' per auto-assegnazione al commerciale collegato",
+      "table_features": "Pipedrive style multi-column table with multi-select, colored status pills, assigned agent avatar, contact type badge, deal value summary, and direct quick action menu",
+      "detail_page": {
+        "left_column": ["Riepilogo (Informazioni chiave e proprietario)", "Dettagli (Campi personalizzati, email, telefono, P.IVA/CF, indirizzo)", "Affari Collegati (Kanban minimizzato / card con valore e stato)", "Panoramica (Statistiche interazioni e valore totale)"],
+        "right_column": {
+          "header": "Tab switcher [Note | Attività | E-mail | Documenti]",
+          "activity_scheduler": "Form inserimento attività rapida con Mini-Calendario del giorno interattivo",
+          "timeline": "Cronologia storica completa ordinate per data con note, chiamate effettuate, cambi fase affari e log modifiche"
+        }
+      }
+    },
+    "affari": {
+      "views": ["Vista Pipeline Kanban", "Vista Lista"],
+      "stages": [
+        "Contatto ricevuto",
+        "Contatto chiamato",
+        "Proposta inviata",
+        "Remind inviati",
+        "Aggiudicato",
+        "Perso"
+      ],
+      "kanban_features": "Drag & drop stage cards, column total summary ($ aggregate), quick deal creation modal, lost reason dialog, direct proposal link 'Crea proposta'"
+    },
+    "attivita": {
+      "types": ["Chiamata", "Richiamo", "Follow up", "Rinnovo"],
+      "filters": ["Tutti", "Oggi", "In ritardo", "Domani", "Questa settimana"],
+      "quick_reschedule": ["Domani", "Tra 3 giorni", "Tra 1 settimana", "Tra 1 mese", "Tra 4 mesi"],
+      "list_features": "Interactive checkboxes to mark complete, row hover actions, contact link, deal link, quick date reschedule dropup menu"
+    },
+    "import_csv": {
+      "description": "Modulo di importazione CSV compatibile con Pipedrive con mapping dei campi personalizzabili e anteprima live delle righe"
+    },
+    "crea_proposta": {
+      "description": "Modal/Tool 'Crea Proposta' con selezione corso ITALIACORSI, calcolo prezzo/sconto, e generazione anteprima preventivo commerciale"
+    }
+  },
+  "testing_and_qa": {
+    "rule": "Every button, link, tab, input, table row, filter, and modal MUST contain a unique data-testid attribute in kebab-case format.",
+    "examples": [
+      "data-testid='nav-link-contatti'",
+      "data-testid='nav-link-affari'",
+      "data-testid='nav-link-attivita'",
+      "data-testid='button-prendo-io'",
+      "data-testid='button-crea-proposta'",
+      "data-testid='filter-in-ritardo'",
+      "data-testid='user-switcher-dropdown'",
+      "data-testid='kanban-stage-proposta-inviata'",
+      "data-testid='contact-detail-tab-note'"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow React .js/.jsx file format conventions across the application.",
+    "Use ITALIACORSI Navy (#0a3b7c) for primary branding/headers and ITALIACORSI Gold (#C9A227) for high priority CTA buttons like 'Crea proposta' and 'Prendo io'.",
+    "Ensure all contact labels are styled with Pipedrive-inspired soft background color badges and dark readable text.",
+    "Implement full functionality for user switching among Angelo (Admin), Luca, Cristina, and Carla so 'Prendo io' assigns the lead to the current active user.",
+    "Provide CSV parsing simulation for Pipedrive exports with step-by-step mapping and preview.",
+    "Ensure all interactive items include data-testid attributes for automated verification."
+  ]
+}
