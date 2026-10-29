@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { addDays, format } from "date-fns";
-import { Plus, Trash2, Eye, Send, Save, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Eye, Send, Save, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api, errMsg } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
-import { fmtMoney } from "@/lib/constants";
+import { fmtMoney, buildPropostaUrl } from "@/lib/constants";
+import { PersonPicker } from "@/components/PersonPicker";
 import { ProductSelect } from "@/components/ProductSelect";
 
 const Preview = ({ pv }) => (
@@ -31,8 +32,10 @@ const Preview = ({ pv }) => (
   </div>
 );
 
-export const ProposalDialog = ({ open, onOpenChange, deal, onSaved }) => {
-  const { products } = useApp();
+export const ProposalDialog = ({ open, onOpenChange, deal, person, onSaved }) => {
+  const { products, config } = useApp();
+  const [picked, setPicked] = useState(null);
+  const contact = person || picked;
   const init = () => ({
     righe: (deal?.prodotti?.length ? deal.prodotti : [""]).map((id) => ({ prodotto_id: id, quantita: 1, sconto_pct: 0 })),
     scadenza: format(addDays(new Date(), 7), "yyyy-MM-dd"), modalita_pagamento: "bonifico", num_rate: 3, note: "",
@@ -40,10 +43,11 @@ export const ProposalDialog = ({ open, onOpenChange, deal, onSaved }) => {
   const [f, setF] = useState(init);
   const [pv, setPv] = useState(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) { setF(init()); setPv(null); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setF(init()); setPv(null); setPicked(null); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const setRow = (i, k, v) => setF((x) => ({ ...x, righe: x.righe.map((r, j) => (j === i ? { ...r, [k]: v } : r)) }));
-  const body = () => ({ ...f, deal_id: deal.id, righe: f.righe.filter((r) => r.prodotto_id).map((r) => ({ ...r, quantita: Number(r.quantita) || 1, sconto_pct: Number(r.sconto_pct) || 0 })),
+  const body = () => ({ ...f, deal_id: deal?.id || null, person_id: deal ? null : contact?.id, righe: f.righe.filter((r) => r.prodotto_id).map((r) => ({ ...r, quantita: Number(r.quantita) || 1, sconto_pct: Number(r.sconto_pct) || 0 })),
     num_rate: Number(f.num_rate) || 1 });
+  const builderUrl = buildPropostaUrl(config.contratti_url, contact, { ...deal, prodotti: f.righe.map((r) => r.prodotto_id).filter(Boolean) });
   const preview = async () => {
     setBusy(true);
     try { setPv((await api.post("/contratti/anteprima", body())).data); } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
@@ -60,7 +64,13 @@ export const ProposalDialog = ({ open, onOpenChange, deal, onSaved }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl" data-testid="proposal-dialog">
-        <DialogHeader><DialogTitle className="font-display">Crea proposta · {deal?.titolo}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-display">{deal ? `Nuova proposta · ${deal.titolo}` : "Nuovo affare · proposta"}</DialogTitle></DialogHeader>
+        {!pv && !deal && (
+          <label className="block text-xs font-medium text-slate-600">Contatto
+            <div className="mt-1">{person ? <div className="crm-input flex items-center" data-testid="proposal-contact">{person.full_name} · {person.email}</div>
+              : <PersonPicker value={picked} onChange={setPicked} testid="proposal-person-picker" />}</div>
+          </label>
+        )}
         {!pv ? (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -88,6 +98,7 @@ export const ProposalDialog = ({ open, onOpenChange, deal, onSaved }) => {
             </div>
             <label className="block text-xs font-medium text-slate-600">Note interne<textarea className="crm-input mt-1 h-16 py-2" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} data-testid="proposal-note" /></label>
             <div className="flex justify-end gap-2">
+              {contact && <a className="btn-ghost mr-auto" href={builderUrl} target="_blank" rel="noreferrer" data-testid="proposal-open-builder"><ExternalLink className="h-4 w-4" />Apri nel builder di contratti</a>}
               <button className="btn-ghost" onClick={() => onOpenChange(false)}>Annulla</button>
               <button className="btn-primary" disabled={busy} onClick={preview} data-testid="proposal-preview-btn"><Eye className="h-4 w-4" />Anteprima proposta e mail</button>
             </div>

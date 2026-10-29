@@ -7,7 +7,6 @@ import { useApp } from "@/context/AppContext";
 import { FASI, FASE_COLORS, TIPI, fmtDate, fmtDateTime, fmtMoney, initials } from "@/lib/constants";
 import { LabelPicker } from "@/components/LabelPill";
 import { PersonDialog } from "@/components/PersonDialog";
-import { DealDialog } from "@/components/DealDialog";
 import { ActivityForm } from "@/components/ActivityForm";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ProposalDialog } from "@/components/ProposalDialog";
@@ -219,7 +218,7 @@ export default function PersonDetail() {
         </div>
       </div>
       <PersonDialog open={edit} onOpenChange={setEdit} person={p} onSaved={load} />
-      <DealDialog open={dealOpen} onOpenChange={setDealOpen} person={p} onSaved={load} />
+      <ProposalDialog open={dealOpen} onOpenChange={setDealOpen} person={p} onSaved={(pr) => nav(`/affari/${pr.crm_deal_id}`)} />
       <ProposalDialog open={!!propDeal} onOpenChange={(o) => !o && setPropDeal(null)} deal={propDeal} onSaved={(pr) => { load(); setOpenProp(pr.id); }} />
       <ProposalPanel propId={openProp} onOpenChange={() => setOpenProp(null)} onChanged={load} mode={mode} />
       <span className="hidden">{config.contratti_url}</span>

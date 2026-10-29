@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { api, errMsg } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
 import { FASI, AUTO_FASI, FASE_COLORS, fmtDateTime, fmtMoney, initials } from "@/lib/constants";
-import { DealDialog } from "@/components/DealDialog";
+import { ProposalDialog } from "@/components/ProposalDialog";
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
 
@@ -89,6 +89,7 @@ const DealList = ({ owner, reloadKey, onReload }) => {
 };
 
 export default function DealsPage() {
+  const nav = useNavigate();
   const { team } = useApp();
   const [view, setView] = useState("kanban");
   const [owner, setOwner] = useState("");
@@ -109,7 +110,7 @@ export default function DealsPage() {
         </select>
       </div>
       <div className="min-h-0 flex-1">{view === "kanban" ? <Kanban owner={owner} reloadKey={key} onReload={reload} /> : <DealList owner={owner} reloadKey={key} onReload={reload} />}</div>
-      <DealDialog open={open} onOpenChange={setOpen} onSaved={reload} />
+      <ProposalDialog open={open} onOpenChange={setOpen} onSaved={(pr) => nav(`/affari/${pr.crm_deal_id}`)} />
     </div>
   );
 }

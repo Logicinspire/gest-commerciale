@@ -1215,7 +1215,8 @@ class RigaIn(BaseModel):
 
 
 class PropostaIn(BaseModel):
-    deal_id: str
+    deal_id: Optional[str] = None
+    person_id: Optional[str] = None
     righe: List[RigaIn]
     scadenza: str
     modalita_pagamento: str = "bonifico"
@@ -1241,12 +1242,17 @@ PAGAMENTI = {"bonifico": "Bonifico", "rate": "Rate", "link": "Link di pagamento"
 
 
 async def _build_proposta(body: PropostaIn, member: dict) -> dict:
-    deal = await db.deals.find_one({"id": body.deal_id}, {"_id": 0})
-    if not deal:
-        raise HTTPException(404, "Affare non trovato")
-    person = await db.persons.find_one({"id": deal.get("person_id")}, {"_id": 0}) if deal.get("person_id") else None
-    if not person or not person.get("email"):
-        raise HTTPException(400, "Il contatto dell'affare deve avere un'email")
+    deal = None
+    if body.deal_id:
+        deal = await db.deals.find_one({"id": body.deal_id}, {"_id": 0})
+        if not deal:
+            raise HTTPException(404, "Affare non trovato")
+    pid = deal.get("person_id") if deal else body.person_id
+    person = await db.persons.find_one({"id": pid}, {"_id": 0}) if pid else None
+    if not person:
+        raise HTTPException(400, "Scegli il contatto della proposta")
+    if not person.get("email"):
+        raise HTTPException(400, "Il contatto deve avere un'email")
     if body.modalita_pagamento not in PAGAMENTI:
         raise HTTPException(400, "Modalità di pagamento non valida")
     if not body.righe:
@@ -1328,11 +1334,46 @@ def _mock_send(p, member, tipo="Invio proposta"):
         p["promemoria"] = [{"id": new_id(), "data_ora": (t + timedelta(days=d)).replace(hour=10, minute=0).isoformat(), "stato": "programmato"} for d in (3, 7)]
 
 
+async def _build_local_for_live(body: PropostaIn) -> dict:
+    pid = body.person_id
+    if body.deal_id:
+        deal = await db.deals.find_one({"id": body.deal_id}, {"_id": 0}) or {}
+        pid = deal.get("person_id")
+    person = await db.persons.find_one({"id": pid}, {"_id": 0}) if pid else None
+    if not person:
+        raise HTTPException(400, "Scegli il contatto della proposta")
+    names = []
+    for r in body.righe:
+        p = await db.products.find_one({"id": r.prodotto_id}, {"_id": 0, "nome": 1})
+        names.append({"nome": (p or {}).get("nome", "Proposta"), "prodotto_id": r.prodotto_id})
+    return {"person": person, "righe": names, "totale": 0}
+
+
+async def _ensure_deal(body: PropostaIn, b: dict, member: dict):
+    """Affare = proposta: reuse the contact's open deal without proposals, otherwise create it."""
+    if body.deal_id:
+        return
+    titolo = " + ".join(r["nome"] for r in b["righe"])
+    deal = await db.deals.find_one({"person_id": b["person"]["id"], "status": "open", "proposte": {"$in": [None, []]}}, {"_id": 0}, sort=[("created_at", -1)])
+    if deal:
+        await db.deals.update_one({"id": deal["id"]}, {"$set": {"titolo": titolo, "owner_id": deal.get("owner_id") or member["user_id"]}})
+    else:
+        deal = {"id": new_id(), "titolo": titolo, "valore": b["totale"], "person_id": b["person"]["id"], "org_id": b["person"].get("org_id"),
+                "owner_id": member["user_id"], "fase": "Contatto chiamato", "status": "open", "origine": "Proposta",
+                "prodotti": [r["prodotto_id"] for r in b["righe"]], "created_at": now_iso(), "updated_at": now_iso(), "fase_since": now_iso()}
+        await db.deals.insert_one(dict(deal))
+        await log(f"Affare creato: {titolo}", member, kind="deal", person_id=b["person"]["id"], deal_id=deal["id"])
+    body.deal_id = deal["id"]
+
+
 @api.post("/contratti/proposte")
 async def proposta_create(body: PropostaIn, member: dict = Depends(staff)):
     if contratti_live():
-        return await remote("POST", "/proposte", member, body.model_dump())
+        b = await _build_local_for_live(body)
+        await _ensure_deal(body, b, member)
+        return await remote("POST", "/proposte", member, {**body.model_dump(), "crm_deal_id": body.deal_id, "crm_person_id": b["person"]["id"]})
     b = await _build_proposta(body, member)
+    await _ensure_deal(body, b, member)
     n = await db.mock_proposte.count_documents({}) + 1
     pid = f"PR-{datetime.now(ROME).year}-{n:04d}"
     pag = {"modalita": body.modalita_pagamento, "stato": "in_attesa", "importo_pagato": 0, "iban": "IT60 X054 2811 1010 0000 0123 456",
