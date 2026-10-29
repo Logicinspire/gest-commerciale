@@ -1,0 +1,30 @@
+{
+  "summary": "Tested rimando naming and the rimandi chain history, on both backend and frontend. Backend: the new tests/test_rimandi.py passes 9/9. It covers storico from every node of a 4-item chain (always original -> latest), a 404 for an unknown id, 401 without a token, a single activity, note_at and done_at being set, and the rimando fields persisting. The full suite passes 36/36 when run sequentially. UI on /persone/:id: created 'x cam' at 10:30 with the ActivityForm. Feedback, recall time 15:45 and 1d gave 'Rimando - x cam' at 15:45. Then 3d gave 'Rimando 2 - x cam' at 09:15, and 3d again gave 'Rimando 3 - x cam' at 17:00. The base name is never nested. The toggle shows 'Storico rimandi (1 precedente)' and '(3 precedenti)'. The list shows Attività originale, Rimando, Rimando 2, and Rimando 3 marked 'questa'. Each item shows 'programmata <date> alle <time>', the feedback text and 'Completata il <date time>'. Regression: Salva feedback shows the yellow note; Salva e completa moves the card to Cronologia. Cronologia shows all completed rimandi, each with its own Storico toggle.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "tests/test_crm_api.py (test infra)", "issue": "With the pytest.ini default '-n' (xdist), 3 tests fail: TestProposte::test_flow, TestProposte::test_create_and_send_then_perso and TestContrattiWebhook::test_events. They depend on state shared across tests (pytest.deal_id, pytest.lead_deal), and xdist runs them on separate workers. They pass when run sequentially with -p no:xdist -o addopts=''. This is not an app bug."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cronologia, Storico rimandi on older rimandi", "issues": ["On 'Rimando - x cam' the toggle reads '(1 precedente)'. The list it opens also includes the later rimandi (Rimando 2 and 3), because storico returns the whole chain. The behaviour may be fine, but the label is slightly misleading. Consider 'Storico rimandi (N)' or splitting the list into previous and following."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_rimandi.py", "/app/test_reports/pytest/pytest_rimandi.xml"],
+  "action_items": [
+    "Optional: the RimandiHistory list is cached after the first open (items state). If feedback is edited later while the card stays mounted, the open list is stale until reload. Refetch on every open, or invalidate when a.note or a.done changes.",
+    "Optional: make the order-dependent tests in test_crm_api.py xdist-safe, or mark them xdist_group."
+  ],
+  "critical_code_review_comments": [
+    "completeAndRecall is still non-atomic (PATCH done, then POST the new rimando). It has no pending or disabled state, so a double-click can create a duplicate 'Rimando N'. Both rimandi would share rimando_di, and storico would show the duplicates via the catena_id query.",
+    "Rimando naming and chain fields (oggetto_base, rimando_n, rimando_di, catena_id) are computed on the client. A server-side 'complete-and-recall' endpoint would be more robust.",
+    "activity_chain walks up with one query per ancestor (capped at 50). This is fine at current scale."
+  ],
+  "updated_files": ["/app/backend/tests/test_rimandi.py"],
+  "success_rate": {"backend": "100% (9/9 new; 36/36 regression sequential)", "frontend": "100% of requested flows"},
+  "test_credentials": "angelo+clerk_test@italiacorsi.it (admin) via tests/make_test_users.py and tests/make_ticket.py Angelo",
+  "seed_data_creation": "Created a TEST_UIRim Chain person and 4 chain activities for the UI run. All deleted afterwards. The pytest fixtures clean up their own data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python tests/test_rimandi.py` via pytest for the rimandi chain. To run the full suite sequentially, use `pytest tests/ -p no:xdist -o addopts=''`. UI sign-in: make_ticket.py Angelo, then /sign-in?__clerk_ticket=<t>. Not tested: rimandi on DealDetail or ActivitiesPage, the 'Feedback del' label (an item with a note but not done), and the 1w/1m/4m presets for rimandi."
+}

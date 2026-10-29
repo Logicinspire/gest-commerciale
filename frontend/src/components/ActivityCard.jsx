@@ -18,7 +18,7 @@ const RimandiHistory = ({ a }) => {
   return (
     <div className="border-t border-slate-100" data-testid={`rimandi-history-${a.id}`}>
       <button onClick={toggle} className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50" data-testid={`rimandi-toggle-${a.id}`}>
-        <History className="h-3.5 w-3.5 text-[#C9A227]" />Storico rimandi ({a.rimando_n} {a.rimando_n === 1 ? "precedente" : "precedenti"})
+        <History className="h-3.5 w-3.5 text-[#C9A227]" />Storico rimandi di “{a.oggetto_base || a.oggetto}”
         <ChevronDown className={`ml-auto h-3.5 w-3.5 transition-transform ${show ? "rotate-180" : ""}`} />
       </button>
       {show && items && (
