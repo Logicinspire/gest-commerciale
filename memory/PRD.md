@@ -10,6 +10,7 @@ Replace Pipedrive for the ITALIACORSI sales team (commerciale.italiacorsi.it). T
 - Contratti client: CONTRATTI_API_URL/KEY. While these are empty, SAMPLE data (MOCKED) is used. Cron /api/cron/sync-prodotti runs hourly (.emergent/crons.yml)
 
 ## Implemented (2026-06)
+- Professione: fixed bases (Ingegnere, Architetto, Geometra, Perito) + specialization. Text from Facebook, site, import and manual entry is interpreted automatically (typos and abbreviations such as ing/geom/arch/P.I.). New specializations are saved in the `professioni` collection and offered as suggestions. Contacts can be filtered by profession.
 - Deal page /affari/:id (Pipedrive-like): stage bar, Aggiudicato/Perso/Riapri, Crea proposta, summary (value, label, expected date, owner), proposals, details, person, products, overview, notes/activities linked to the deal, deal timeline
 - Contacts: people and organisations, labels, duplicate warning, Da assegnare + Prendo io, admin assignment
 - Contact page: summary, details, deals (with Crea proposta), overview, notes, activity form with presets and a day mini-calendar, planned activities, timeline

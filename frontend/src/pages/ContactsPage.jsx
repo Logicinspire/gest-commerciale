@@ -47,12 +47,13 @@ const PersonsTable = ({ view, reloadCounts }) => {
   const [page, setPage] = useState(1);
   const [label, setLabel] = useState("");
   const [owner, setOwner] = useState("");
+  const [prof, setProf] = useState("");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const limit = 50;
-  const load = useCallback(() => api.get("/persons", { params: { view, page, limit, label, owner, q } }).then((r) => setData(r.data)), [view, page, label, owner, q]);
+  const load = useCallback(() => api.get("/persons", { params: { view, page, limit, label, owner, q, professione: prof } }).then((r) => setData(r.data)), [view, page, label, owner, q, prof]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setPage(1); }, [view, label, owner, q]);
+  useEffect(() => { setPage(1); }, [view, label, owner, q, prof]);
 
   const take = async (p) => {
     try { await api.post(`/persons/${p.id}/take`); toast.success(`${p.full_name} ora è tuo`); load(); reloadCounts(); }
@@ -73,6 +74,10 @@ const PersonsTable = ({ view, reloadCounts }) => {
           <option value="">Tutte le etichette</option>
           {Object.keys(LABEL_COLORS).map((l) => <option key={l}>{l}</option>)}
         </select>
+        <select className="crm-select" value={prof} onChange={(e) => setProf(e.target.value)} data-testid="persons-professione-filter">
+          <option value="">Tutte le professioni</option>
+          {["Ingegnere", "Architetto", "Geometra", "Perito"].map((p) => <option key={p}>{p}</option>)}
+        </select>
         {!lead && (
           <select className="crm-select" value={owner} onChange={(e) => setOwner(e.target.value)} data-testid="persons-owner-filter">
             <option value="">Tutti i proprietari</option>
@@ -90,7 +95,7 @@ const PersonsTable = ({ view, reloadCounts }) => {
         <table className="w-full border-collapse" data-testid="persons-table">
           <thead><tr>
             {lead && <th className="th w-48">Azione</th>}
-            <th className="th">Etichette</th><th className="th">Primo contatto</th><th className="th">Aggiornato</th><th className="th">Nome</th>
+            <th className="th">Etichette</th><th className="th">Primo contatto</th><th className="th">Aggiornato</th><th className="th">Nome</th><th className="th">Professione</th>
             <th className="th">Email</th><th className="th">Telefono</th><th className="th">Prodotto richiesto</th><th className="th">Marketing</th>
             {!lead && <th className="th">Proprietario</th>}
           </tr></thead>
@@ -114,6 +119,7 @@ const PersonsTable = ({ view, reloadCounts }) => {
                 <td className="td">{fmtDate(p.primo_contatto)}</td>
                 <td className="td text-slate-500">{fmtDateTime(p.updated_at)}</td>
                 <td className="td font-medium text-slate-900">{p.full_name}</td>
+                <td className="td">{p.professione}</td>
                 <td className="td text-[#0a3b7c]">{p.email}</td>
                 <td className="td text-[#0a3b7c]">{p.telefono}</td>
                 <td className="td max-w-[200px] truncate">{p.prodotto_richiesto}</td>

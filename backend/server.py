@@ -22,8 +22,11 @@ load_dotenv(ROOT_DIR / '.env')
 
 try:
     from backend.clerk_auth import clerk_router, require_user
+    from backend.professioni import normalize as normalize_prof, BASES as PROF_BASES
 except ModuleNotFoundError:
     from clerk_auth import clerk_router, require_user
+    from professioni import normalize as normalize_prof, BASES as PROF_BASES
+import asyncio
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -113,6 +116,26 @@ async def startup():
     await db.activities.create_index("person_id")
     await db.notes.create_index("person_id")
     await db.history.create_index("person_id")
+    LEARNED_SPECS.update(await db.professioni.distinct("spec"))
+
+
+@api.get("/professioni")
+async def list_professioni(member: dict = Depends(staff)):
+    learned = await db.professioni.find({}, {"_id": 0}).sort("count", -1).to_list(500)
+    return {"basi": list(PROF_BASES.keys()), "specializzazioni": learned}
+
+
+@api.post("/professioni/normalizza")
+async def normalize_all_prof(admin: dict = Depends(admin_only)):
+    changed = 0
+    async for p in db.persons.find({"professione": {"$nin": [None, ""]}}, {"_id": 0, "id": 1, "professione": 1, "professione_base": 1}):
+        prof, base, spec = normalize_prof(p["professione"], LEARNED_SPECS)
+        if spec:
+            await _learn_prof(prof, base, spec)
+        if prof != p["professione"] or base != p.get("professione_base"):
+            await db.persons.update_one({"id": p["id"]}, {"$set": {"professione": prof, "professione_base": base}})
+            changed += 1
+    return {"aggiornati": changed}
 
 
 # ---------------- Helpers ----------------
@@ -150,10 +173,22 @@ def fase_status(fase):
     return "won" if fase == "Aggiudicato" else "lost" if fase == "Perso" else "open"
 
 
+LEARNED_SPECS: set = set()
+
+
+async def _learn_prof(nome, base, spec):
+    LEARNED_SPECS.add(spec)
+    await db.professioni.update_one({"nome": nome}, {"$set": {"base": base, "spec": spec}, "$inc": {"count": 1}}, upsert=True)
+
+
 def person_computed(p: dict) -> dict:
     p["full_name"] = " ".join(x for x in [p.get("nome"), p.get("cognome")] if x).strip() or p.get("email") or "Senza nome"
     p["email_norm"] = norm_email(p.get("email"))
     p["telefono_norm"] = norm_phone(p.get("telefono"))
+    prof, base, spec = normalize_prof(p.get("professione"), LEARNED_SPECS)
+    p["professione"], p["professione_base"] = prof, base
+    if spec:
+        asyncio.get_running_loop().create_task(_learn_prof(prof, base, spec))
     return p
 
 
@@ -327,9 +362,11 @@ async def integrations(admin: dict = Depends(admin_only)):
 
 # ---------------- Persons ----------------
 @api.get("/persons")
-async def list_persons(view: str = "all", q: str = "", label: str = "", owner: str = "", page: int = 1,
+async def list_persons(view: str = "all", q: str = "", label: str = "", owner: str = "", professione: str = "", page: int = 1,
                        limit: int = 50, sort: str = "updated_at", dir: int = -1, member: dict = Depends(staff)):
     flt: dict = {}
+    if professione:
+        flt["professione_base" if professione in PROF_BASES else "professione"] = professione
     if view == "da_assegnare":
         flt["da_assegnare"] = True
     elif view == "mine":

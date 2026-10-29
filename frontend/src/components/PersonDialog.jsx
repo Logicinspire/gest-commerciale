@@ -7,10 +7,11 @@ import { api, errMsg } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
 import { LabelPicker } from "@/components/LabelPill";
 import { ProductSelect } from "@/components/ProductSelect";
+import { ProfessionField } from "@/components/ProfessionField";
 
 const FIELDS = [
   ["nome", "Nome"], ["cognome", "Cognome"], ["email", "Email", "email"], ["telefono", "Telefono"],
-  ["professione", "Professione"], ["primo_contatto", "Primo contatto", "date"], ["tipo_marketing", "Tipo marketing"],
+  ["primo_contatto", "Primo contatto", "date"], ["tipo_marketing", "Tipo marketing"],
   ["citta", "Città"], ["privacy", "Privacy"],
 ];
 
@@ -33,7 +34,7 @@ export const PersonDialog = ({ open, onOpenChange, person, onSaved }) => {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const save = async (force = false) => {
     setSaving(true);
-    const keys = [...FIELDS.map((f) => f[0]), "etichette", "prodotto_richiesto", "prodotto_id", ...(isAdmin ? ["owner_id"] : [])];
+    const keys = [...FIELDS.map((f) => f[0]), "professione", "etichette", "prodotto_richiesto", "prodotto_id", ...(isAdmin ? ["owner_id"] : [])];
     const body = Object.fromEntries(keys.filter((k) => form[k] !== undefined).map((k) => [k, form[k] === "" ? null : form[k]]));
     try {
       const r = person ? await api.patch(`/persons/${person.id}`, { ...body, force }) : await api.post("/persons", { ...body, force });
@@ -66,6 +67,9 @@ export const PersonDialog = ({ open, onOpenChange, person, onSaved }) => {
               <input type={type || "text"} className="crm-input mt-1" value={form[k] || ""} onChange={(e) => set(k, e.target.value)} data-testid={`person-field-${k}`} />
             </label>
           ))}
+          <label className="text-xs font-medium text-slate-600">Professione
+            <ProfessionField value={form.professione} onChange={(v) => set("professione", v)} />
+          </label>
           <label className="text-xs font-medium text-slate-600">Prodotto richiesto
             <div className="mt-1"><ProductSelect value={form.prodotto_id} testid="person-field-prodotto"
               onChange={(p) => setForm((f) => ({ ...f, prodotto_id: p?.id || null, prodotto_richiesto: p?.nome || null }))} /></div>
